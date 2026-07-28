@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="ScratchCLI">
+  <defs>
+    <linearGradient id="plate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1c1d20"/>
+      <stop offset="1" stop-color="#0b0c0e"/>
+    </linearGradient>
+    <linearGradient id="note" x1="200" y1="160" x2="840" y2="900" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff6c2"/>
+      <stop offset="0.5" stop-color="#f0d978"/>
+      <stop offset="1" stop-color="#dcb84a"/>
+    </linearGradient>
+    <linearGradient id="fold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff9d8"/>
+      <stop offset="1" stop-color="#c9a63f"/>
+    </linearGradient>
+    <linearGradient id="term" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b2b25"/>
+      <stop offset="1" stop-color="#0c1410"/>
+    </linearGradient>
+    <filter id="soft" x="-12%" y="-12%" width="124%" height="130%">
+      <feDropShadow dx="0" dy="20" stdDeviation="20" flood-color="#000000" flood-opacity=".5"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="196" fill="url(#plate)"/>
+
+  <!-- Sticky note -->
+  <g filter="url(#soft)" transform="rotate(-7 512 530)">
+    <rect x="248" y="230" width="528" height="600" rx="42" fill="url(#note)"/>
+    <!-- notepad rules -->
+    <g stroke="#c7a53a" stroke-opacity=".32" stroke-width="7" stroke-linecap="round">
+      <path d="M310 400h404"/>
+      <path d="M310 470h404"/>
+      <path d="M310 540h300"/>
+    </g>
+    <!-- dog-ear -->
+    <path d="M656 230h120v120Z" fill="url(#fold)"/>
+    <path d="M656 230v120h120" fill="none" stroke="#b49236" stroke-opacity=".5" stroke-width="7"/>
+    <!-- adhesive strip hint -->
+    <rect x="310" y="262" width="280" height="18" rx="9" fill="#ffffff" opacity=".28"/>
+  </g>
+
+  <!-- CLI terminal card on the note -->
+  <g filter="url(#soft)" transform="rotate(-7 512 560)">
+    <rect x="300" y="450" width="424" height="250" rx="32" fill="url(#term)"/>
+    <rect x="300" y="450" width="424" height="250" rx="32" fill="#3ddc84" opacity=".07"/>
+    <!-- window dots -->
+    <circle cx="344" cy="494" r="12" fill="#3ddc84" opacity=".35"/>
+    <circle cx="384" cy="494" r="12" fill="#3ddc84" opacity=".22"/>
+    <circle cx="424" cy="494" r="12" fill="#3ddc84" opacity=".14"/>
+    <!-- prompt chevron > -->
+    <path
+      d="M360 610 L420 560 L360 510"
+      fill="none"
+      stroke="#3ddc84"
+      stroke-width="28"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <!-- cursor block -->
+    <rect x="460" y="534" width="48" height="78" rx="8" fill="#3ddc84"/>
+    <!-- typed line -->
+    <rect x="530" y="560" width="140" height="22" rx="11" fill="#3ddc84" opacity=".35"/>
+  </g>
+</svg>

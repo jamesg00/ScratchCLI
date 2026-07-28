@@ -1,0 +1,10 @@
+pub mod app_lifecycle;
+pub mod chat;
+pub mod files;
+pub mod grok;
+pub mod leetcode;
+pub mod notes;
+pub mod pty;
+pub mod python;
+pub mod secrets;
+pub mod shell;

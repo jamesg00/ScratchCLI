@@ -1,0 +1,84 @@
+import { describe, expect, it } from "vitest";
+import {
+  buildLeetCodeScaffold,
+  htmlToPlainText,
+  parseExamplesFromText,
+  parseInputBindings,
+  stubSolutionCode,
+} from "./leetcodePractice";
+import type { LeetCodeProblem } from "../../services/leetcode";
+
+const TWO_SUM_HTML = `
+<p>Given an array of integers <code>nums</code> and an integer <code>target</code>.</p>
+<p><strong>Example 1:</strong></p>
+<pre>Input: nums = [2,7,11,15], target = 9
+Output: [0,1]
+</pre>
+<p><strong>Example 2:</strong></p>
+<pre>Input: nums = [3,2,4], target = 6
+Output: [1,2]
+</pre>
+<p><strong>Constraints:</strong></p>
+<ul><li>2 <= nums.length</li></ul>
+`;
+
+describe("htmlToPlainText / parseExamples", () => {
+  it("parses Two Sum style examples", () => {
+    const plain = htmlToPlainText(TWO_SUM_HTML);
+    const examples = parseExamplesFromText(plain);
+    expect(examples.length).toBeGreaterThanOrEqual(2);
+    expect(examples[0]!.bindings).toEqual({ nums: [2, 7, 11, 15], target: 9 });
+    expect(examples[0]!.expected).toEqual([0, 1]);
+  });
+
+  it("parses input bindings", () => {
+    expect(parseInputBindings('s = "hello"')).toEqual({ s: "hello" });
+  });
+});
+
+describe("stubSolutionCode", () => {
+  it("replaces method bodies with pass", () => {
+    const stub = stubSolutionCode(`class Solution:
+    def twoSum(self, nums: List[int], target: int) -> List[int]:
+        # TODO
+        return []
+`);
+    expect(stub).toContain("def twoSum");
+    expect(stub).toMatch(/pass/);
+    expect(stub).not.toContain("return []");
+  });
+});
+
+describe("buildLeetCodeScaffold", () => {
+  it("builds a practice file with LC marker and examples", () => {
+    const problem: LeetCodeProblem = {
+      title: "Two Sum",
+      titleSlug: "two-sum",
+      difficulty: "Easy",
+      frontendId: "1",
+      content: TWO_SUM_HTML,
+      paidOnly: false,
+      exampleTestcaseList: ["[2,7,11,15]\n9"],
+      codeSnippets: [
+        {
+          lang: "Python3",
+          langSlug: "python3",
+          code: `class Solution:
+    def twoSum(self, nums: List[int], target: int) -> List[int]:
+        return []
+`,
+        },
+      ],
+      topicTags: ["Array", "Hash Table"],
+      url: "https://leetcode.com/problems/two-sum/",
+    };
+    const { file, warnings } = buildLeetCodeScaffold(problem);
+    expect(warnings).toEqual([]);
+    expect(file.fileName).toBe("two_sum.py");
+    expect(file.content).toContain("# LC: two-sum");
+    expect(file.content).toContain("def twoSum");
+    expect(file.content).toContain("pass");
+    expect(file.content).toContain("[2, 7, 11, 15]");
+    expect(file.content).toContain("test_cases");
+  });
+});
