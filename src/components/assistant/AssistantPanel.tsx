@@ -169,7 +169,10 @@ export function AssistantPanel({
     void (async () => {
       if (provider === "ollama" || provider === "lmstudio") {
         try {
-          const baseUrl = baseUrlForProvider(provider, ai);
+          const baseUrl = baseUrlForProvider(provider, {
+            ollamaBaseUrl: ai.ollamaBaseUrl,
+            lmstudioBaseUrl: ai.lmstudioBaseUrl,
+          });
           const listed = await listLocalModels(provider, baseUrl);
           if (cancelled) return;
           const ids = listed.map((item) => item.id);
@@ -188,7 +191,7 @@ export function AssistantPanel({
     return () => {
       cancelled = true;
     };
-  }, [provider, ai.ollamaBaseUrl, ai.lmstudioBaseUrl]);
+  }, [provider, model, ai.ollamaBaseUrl, ai.lmstudioBaseUrl]);
 
   const onResizeDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
