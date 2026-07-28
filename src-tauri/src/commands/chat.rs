@@ -25,10 +25,7 @@ impl ChatProvider {
             "xai" | "grok" => Ok(Self::Xai),
             "openai" => Ok(Self::Openai),
             "anthropic" | "claude" => Ok(Self::Anthropic),
-            other => Err(chat_error(
-                format!("Unknown chat provider: {other}"),
-                false,
-            )),
+            other => Err(chat_error(format!("Unknown chat provider: {other}"), false)),
         }
     }
 
@@ -424,6 +421,7 @@ async fn stream_anthropic(
     Ok(reply)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run_chat(
     provider: ChatProvider,
     model: Option<String>,
@@ -568,10 +566,7 @@ pub async fn list_local_models(
                 .send()
                 .await
                 .map_err(|error| {
-                    chat_error(
-                        format!("Ollama not reachable at {base}: {error}"),
-                        true,
-                    )
+                    chat_error(format!("Ollama not reachable at {base}: {error}"), true)
                 })?;
             if !response.status().is_success() {
                 return Err(chat_error(
@@ -606,10 +601,7 @@ pub async fn list_local_models(
                 .send()
                 .await
                 .map_err(|error| {
-                    chat_error(
-                        format!("LM Studio not reachable at {base}: {error}"),
-                        true,
-                    )
+                    chat_error(format!("LM Studio not reachable at {base}: {error}"), true)
                 })?;
             if !response.status().is_success() {
                 return Err(chat_error(
@@ -705,14 +697,7 @@ Editor buffer:\n```{language}\n{}\n```\n\n",
     });
 
     run_chat(
-        provider,
-        model,
-        system,
-        messages,
-        api_key,
-        base_url,
-        0.4,
-        on_token,
+        provider, model, system, messages, api_key, base_url, 0.4, on_token,
     )
     .await
 }

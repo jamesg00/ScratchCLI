@@ -306,7 +306,13 @@ pub fn start_pty_session(
             }
         }
         flush(&app_reader, &emit_id, &mut pending);
-        finish_session(&sessions_reader, &exited_reader, &app_reader, &emit_id, None);
+        finish_session(
+            &sessions_reader,
+            &exited_reader,
+            &app_reader,
+            &emit_id,
+            None,
+        );
     });
 
     // Waiter: poll try_wait WITHOUT holding the lock, so kill_pty_session can

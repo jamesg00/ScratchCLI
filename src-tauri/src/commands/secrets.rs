@@ -67,11 +67,7 @@ fn normalize_provider(provider: &str) -> Result<String, AppError> {
     let value = provider.trim().to_ascii_lowercase();
     match value.as_str() {
         "ollama" | "lmstudio" | "xai" | "openai" | "anthropic" | "grok" => {
-            Ok(if value == "grok" {
-                "xai".into()
-            } else {
-                value
-            })
+            Ok(if value == "grok" { "xai".into() } else { value })
         }
         _ => Err(AppError {
             code: "SECRETS_ERROR",
@@ -87,7 +83,11 @@ pub fn secrets_get(app: AppHandle, provider: String) -> Result<Option<String>, A
     let key = normalize_provider(&provider)?;
     let path = secrets_path(&app)?;
     let store = load_store(&path)?;
-    Ok(store.keys.get(&key).cloned().filter(|value| !value.trim().is_empty()))
+    Ok(store
+        .keys
+        .get(&key)
+        .cloned()
+        .filter(|value| !value.trim().is_empty()))
 }
 
 #[tauri::command]

@@ -45,7 +45,7 @@ ScratchCLI_0.1.0_x64-setup.exe /S
 
 ### Build from source
 
-**Prerequisites:** Node.js 20+, Rust (MSVC), WebView2. For Python features, Python 3 on PATH.
+**Prerequisites:** Node.js 22+, Rust (MSVC), WebView2. For Python features, Python 3 on PATH.
 
 ```powershell
 winget install --id Rustlang.Rustup
