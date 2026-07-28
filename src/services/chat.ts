@@ -1,11 +1,7 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 
 export type ChatProviderId =
-  | "ollama"
-  | "lmstudio"
-  | "xai"
-  | "openai"
-  | "anthropic";
+  "ollama" | "lmstudio" | "xai" | "openai" | "anthropic";
 
 export type ChatMessage = {
   role: "user" | "assistant";

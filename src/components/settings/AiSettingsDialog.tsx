@@ -47,7 +47,9 @@ export function AiSettingsDialog({ onClose }: Props) {
       }
     } catch (error) {
       setLocalStatus(
-        error instanceof Error ? error.message : "Could not reach local models.",
+        error instanceof Error
+          ? error.message
+          : "Could not reach local models.",
       );
     } finally {
       setBusy(false);

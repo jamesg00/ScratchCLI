@@ -54,7 +54,10 @@ import { fileService, languageFromPath } from "../services/files";
 import { noteService } from "../services/notes";
 import { executePython } from "../services/python";
 import { exportTodayPractice } from "../services/exportPractice";
-import { useAppearanceStore, hydrateGrokApiKeyFromSecrets } from "../stores/appearanceStore";
+import {
+  useAppearanceStore,
+  hydrateGrokApiKeyFromSecrets,
+} from "../stores/appearanceStore";
 import { useNoteStore } from "../stores/noteStore";
 import { useSessionStore } from "../stores/sessionStore";
 import { useStudyStore } from "../stores/studyStore";
@@ -835,7 +838,11 @@ export function App() {
         normalized === "grok"
       ) {
         openCoach();
-      } else if (normalized === "assistant" || normalized === "chat" || normalized === "ai") {
+      } else if (
+        normalized === "assistant" ||
+        normalized === "chat" ||
+        normalized === "ai"
+      ) {
         openAssistant();
       } else {
         sendTerminalCommand(command);
@@ -1798,9 +1805,7 @@ export function App() {
                           onChange={(event) =>
                             cliHandlers.setLanguage(
                               event.target.value as
-                                | "python"
-                                | "markdown"
-                                | "plaintext",
+                                "python" | "markdown" | "plaintext",
                             )
                           }
                         >
@@ -1898,7 +1903,9 @@ export function App() {
                       <button
                         type="button"
                         className="cockpit-resume"
-                        onClick={() => useSessionStore.getState().resumeEditor()}
+                        onClick={() =>
+                          useSessionStore.getState().resumeEditor()
+                        }
                       >
                         Resume editor ({session.tabs.length})
                       </button>
@@ -2048,9 +2055,7 @@ export function App() {
           onOpen={(id) => void cliHandlers.openNote(id)}
           onChanged={() => void loadNotes()}
           onClose={() => setNotesOpen(false)}
-          onCliMessage={(text) =>
-            setCliNotice({ id: Date.now(), text })
-          }
+          onCliMessage={(text) => setCliNotice({ id: Date.now(), text })}
           onNoteColorChanged={(noteId, color) => {
             const state = useSessionStore.getState();
             const tab = state.tabs.find(

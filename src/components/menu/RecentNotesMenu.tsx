@@ -151,7 +151,11 @@ export function RecentNotesMenu({
           <i />
         </span>
       </summary>
-      <div className="recent-notes-panel app-menu-panel" role="menu" aria-label="Menu">
+      <div
+        className="recent-notes-panel app-menu-panel"
+        role="menu"
+        aria-label="Menu"
+      >
         <MenuSection label="Notes">
           <header className="recent-notes-head">
             <div>

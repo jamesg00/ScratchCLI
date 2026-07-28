@@ -178,7 +178,11 @@ export const InteractivePty = forwardRef<InteractivePtyHandle, Props>(
 
       const onQuitChord = (event: KeyboardEvent) => {
         if (!(event.key === "q" || event.key === "Q")) return;
-        if (!(event.ctrlKey && event.shiftKey) || event.altKey || event.metaKey) {
+        if (
+          !(event.ctrlKey && event.shiftKey) ||
+          event.altKey ||
+          event.metaKey
+        ) {
           return;
         }
         event.preventDefault();

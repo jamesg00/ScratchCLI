@@ -2457,11 +2457,7 @@ html[data-grok-resizing="1"] .grok-resize-handle::after {
   border: 1px solid
     color-mix(in srgb, var(--custom-fg, #ffffff) 28%, transparent);
   border-radius: 3px;
-  background: color-mix(
-    in srgb,
-    var(--custom-fg, #ffffff) 10%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--custom-fg, #ffffff) 10%, transparent);
 }
 
 .agent-exit-btn:hover {
@@ -4242,11 +4238,7 @@ html[data-grok-resizing="1"] .grok-resize-handle::after {
   color: inherit;
   border: 1px solid
     color-mix(in srgb, var(--custom-fg, var(--text)) 22%, transparent);
-  background: color-mix(
-    in srgb,
-    var(--custom-fg, var(--text)) 8%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--custom-fg, var(--text)) 8%, transparent);
 }
 
 .cockpit-resume:hover {
@@ -4394,11 +4386,7 @@ html[data-grok-resizing="1"] .grok-resize-handle::after {
   padding: 12px 12px 12px 14px;
   border-bottom: 1px solid var(--line);
   border-left: 4px solid var(--note-accent, #e1b957);
-  background: color-mix(
-    in srgb,
-    var(--note-accent, #e1b957) 7%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--note-accent, #e1b957) 7%, transparent);
   --note-accent: #e1b957;
 }
 

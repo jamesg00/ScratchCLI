@@ -16,16 +16,16 @@ ScratchCLI boots into a full console (CMD / PowerShell / WSL / Python). Open a n
 
 ## Features
 
-| Area | What you get |
-|------|----------------|
-| **Notes** | Pin, color, archive, trash, revision history (`Ctrl+Shift+N` / Menu → Library) |
-| **Editor** | Tabs, up to 4 split panes, Markdown / Python / plain text |
-| **Shell** | In-app CMD, PowerShell, WSL; interactive TUIs via PTY |
-| **Python** | `run` / `build` on the current buffer using system Python |
-| **Assistant** | Local Ollama / LM Studio first; optional OpenAI / Anthropic / xAI keys |
-| **DSA coach** | Practice / hints / visualize (`coach` or `Ctrl+G`) |
-| **Agents** | `claude` / `codex` if installed on PATH |
-| **Appearance** | Themes, fonts, opacity (`Ctrl+,`) |
+| Area           | What you get                                                                   |
+| -------------- | ------------------------------------------------------------------------------ |
+| **Notes**      | Pin, color, archive, trash, revision history (`Ctrl+Shift+N` / Menu → Library) |
+| **Editor**     | Tabs, up to 4 split panes, Markdown / Python / plain text                      |
+| **Shell**      | In-app CMD, PowerShell, WSL; interactive TUIs via PTY                          |
+| **Python**     | `run` / `build` on the current buffer using system Python                      |
+| **Assistant**  | Local Ollama / LM Studio first; optional OpenAI / Anthropic / xAI keys         |
+| **DSA coach**  | Practice / hints / visualize (`coach` or `Ctrl+G`)                             |
+| **Agents**     | `claude` / `codex` if installed on PATH                                        |
+| **Appearance** | Themes, fonts, opacity (`Ctrl+,`)                                              |
 
 API keys: **Menu → AI keys** or type `env`. See [PRIVACY.md](PRIVACY.md).
 
@@ -88,11 +88,11 @@ Command palette: **Ctrl+K**. Focus CLI: **Ctrl+`** or **Ctrl+\\**.
 
 ## Data & privacy
 
-| Data | Location |
-|------|----------|
-| Notes DB | `%APPDATA%\com.scratchcli.desktop\scratchcli.db` |
-| API keys | `%APPDATA%\com.scratchcli.desktop\secrets.json` |
-| AI / appearance prefs | WebView localStorage |
+| Data                  | Location                                         |
+| --------------------- | ------------------------------------------------ |
+| Notes DB              | `%APPDATA%\com.scratchcli.desktop\scratchcli.db` |
+| API keys              | `%APPDATA%\com.scratchcli.desktop\secrets.json`  |
+| AI / appearance prefs | WebView localStorage                             |
 
 Per Windows user. Not baked into the EXE. Details: [PRIVACY.md](PRIVACY.md).
 

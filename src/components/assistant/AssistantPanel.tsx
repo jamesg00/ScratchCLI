@@ -93,9 +93,7 @@ function AssistantOutput({
               <span className="grok-code-label">{segment.lang || "code"}</span>
             </div>
             <pre className="grok-code">
-              {isPython
-                ? renderPythonCode(segment.code)
-                : segment.code}
+              {isPython ? renderPythonCode(segment.code) : segment.code}
               {streaming && index === segments.length - 1 ? (
                 <span className="grok-caret" aria-hidden="true">
                   ▍
@@ -131,7 +129,9 @@ export function AssistantPanel({
   const [busy, setBusy] = useState(false);
   const [history, setHistory] = useState<ChatMessage[]>([]);
   const [models, setModels] = useState<string[]>([]);
-  const [provider, setProvider] = useState<ChatProviderId>(ai.assistantProvider);
+  const [provider, setProvider] = useState<ChatProviderId>(
+    ai.assistantProvider,
+  );
   const [model, setModel] = useState(ai.assistantModel);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -140,7 +140,10 @@ export function AssistantPanel({
 
   const append = (kind: Line["kind"], text: string, streaming = false) => {
     const id = lineId++;
-    setLines((current) => [...current.slice(-80), { id, kind, text, streaming }]);
+    setLines((current) => [
+      ...current.slice(-80),
+      { id, kind, text, streaming },
+    ]);
     return id;
   };
 
@@ -172,7 +175,8 @@ export function AssistantPanel({
           const ids = listed.map((item) => item.id);
           setModels(ids);
           if (!model && ids[0]) setModel(ids[0]);
-          if (model && ids.length && !ids.includes(model)) setModel(ids[0] ?? "");
+          if (model && ids.length && !ids.includes(model))
+            setModel(ids[0] ?? "");
         } catch {
           if (!cancelled) setModels([]);
         }
@@ -219,7 +223,8 @@ export function AssistantPanel({
     append("command", `you> ${trimmed}`);
     const outId = append("output", "", true);
     try {
-      const needsKey = provider === "xai" || provider === "openai" || provider === "anthropic";
+      const needsKey =
+        provider === "xai" || provider === "openai" || provider === "anthropic";
       const apiKey = needsKey ? await secretsGet(provider) : null;
       if (needsKey && !apiKey?.trim()) {
         throw new Error(
@@ -239,7 +244,9 @@ export function AssistantPanel({
         onToken: (text) => {
           setLines((current) =>
             current.map((line) =>
-              line.id === outId ? { ...line, text: `${line.text}${text}` } : line,
+              line.id === outId
+                ? { ...line, text: `${line.text}${text}` }
+                : line,
             ),
           );
         },
@@ -281,11 +288,7 @@ export function AssistantPanel({
   const fileLabel = title?.trim() || "untitled";
 
   return (
-    <section
-      ref={paneRef}
-      className="grok-cli-pane"
-      aria-label="Assistant"
-    >
+    <section ref={paneRef} className="grok-cli-pane" aria-label="Assistant">
       <div
         className="grok-resize-handle"
         title="Drag to resize Assistant"

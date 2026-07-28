@@ -1,11 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 export type SecretProvider =
-  | "ollama"
-  | "lmstudio"
-  | "xai"
-  | "openai"
-  | "anthropic";
+  "ollama" | "lmstudio" | "xai" | "openai" | "anthropic";
 
 export async function secretsGet(
   provider: SecretProvider | string,

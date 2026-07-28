@@ -53,7 +53,8 @@ export function DeveloperCockpitWelcome({
       </div>
       <p className="cockpit-ai-tip">
         CLI home · <code>open</code> → Editor · <code>close</code> / Esc back ·{" "}
-        <code>resume</code> tabs · <code>claude</code> / <code>codex</code> agents
+        <code>resume</code> tabs · <code>claude</code> / <code>codex</code>{" "}
+        agents
       </p>
     </section>
   );

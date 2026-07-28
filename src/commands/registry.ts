@@ -136,7 +136,8 @@ export const COMMAND_REGISTRY = [
     id: "ai.settings",
     aliases: ["aisettings", "apikeys", "env"],
     label: "AI keys",
-    description: "API keys, Ollama/LM Studio URLs, and default Assistant provider.",
+    description:
+      "API keys, Ollama/LM Studio URLs, and default Assistant provider.",
     usage: "env",
     category: "System",
     safety: "safe",

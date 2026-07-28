@@ -60,4 +60,4 @@ For privacy questions about ScratchCLI, contact the publisher through the projec
 
 ---
 
-*This policy describes the desktop ScratchCLI application’s intended data practices. It is not legal advice. If you distribute ScratchCLI commercially or through an app store, have counsel review this text for your jurisdiction and listing requirements.*
+_This policy describes the desktop ScratchCLI application’s intended data practices. It is not legal advice. If you distribute ScratchCLI commercially or through an app store, have counsel review this text for your jurisdiction and listing requirements._

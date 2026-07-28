@@ -61,10 +61,12 @@ CLI-first local coding scratchpad for Windows — notes, editor, shell, and opti
 First Windows release of ScratchCLI — a CLI-first, local-first coding scratchpad.
 
 ### Download
+
 - **Installer (x64):** `ScratchCLI_0.1.0_x64-setup.exe`
 - Silent install: `ScratchCLI_0.1.0_x64-setup.exe /S`
 
 ### Notes
+
 - Requires WebView2 (usually already on Windows 10/11).
 - Unsigned builds may show a SmartScreen warning.
 - Your notes and API keys stay in your user AppData — each Windows account starts fresh.
