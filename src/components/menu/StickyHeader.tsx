@@ -217,7 +217,7 @@ export function StickyHeader({
   );
 
   return (
-    <header className="sticky-header" data-tauri-drag-region>
+    <header className="sticky-header">
       <RecentNotesMenu
         notes={notes}
         onNew={onNew}

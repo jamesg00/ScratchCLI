@@ -392,6 +392,10 @@ export const useSessionStore = create<SessionState>()(
       closeTab: (id) => {
         set((state) => {
           const tabs = state.tabs.filter((tab) => tab.id !== id);
+          const nextSplitCount = Math.max(
+            1,
+            Math.min(state.splitCount, Math.max(1, tabs.length)),
+          ) as SplitCount;
           const activeTabId =
             state.activeTabId === id
               ? (tabs[Math.max(0, tabs.length - 1)]?.id ?? null)
@@ -417,10 +421,12 @@ export const useSessionStore = create<SessionState>()(
             paneTabIds: ensurePaneTabs(
               paneTabIds,
               tabs,
-              state.splitCount,
+              nextSplitCount,
               activeTabId,
             ),
-            splitCount: tabs.length ? state.splitCount : (1 as SplitCount),
+            splitCount: nextSplitCount,
+            paneSizes: equalSizes(nextSplitCount),
+            focusedPaneIndex: Math.min(state.focusedPaneIndex, nextSplitCount - 1),
             nanoPrompt: null,
           };
         });

@@ -39,6 +39,7 @@ export type TerminalCommand =
   | { kind: "tabNew" }
   | { kind: "tabClone" }
   | { kind: "grok" }
+  | { kind: "study" }
   | { kind: "assistant" }
   | { kind: "aiSettings" }
   | { kind: "agent"; name: "claude" | "codex" }
@@ -125,9 +126,11 @@ const EDITOR_SLASH_NAMES = new Set([
   "tab",
   "clone",
   "duplicate",
-  "grok",
   "coach",
   "dsa",
+  "study",
+  "lesson",
+  "lessons",
   "assistant",
   "chat",
   "ai",
@@ -182,12 +185,17 @@ export function parseTerminalCommand(raw: string): TerminalCommand {
     case "check":
       return { kind: "build" };
     case "theme":
-      if (value === "light" || value === "dark" || value === "pro") {
+      if (
+        value === "light" ||
+        value === "dark" ||
+        value === "pro" ||
+        value === "comet"
+      ) {
         return { kind: "theme", value };
       }
       return {
         kind: "error",
-        message: "Usage: theme light|dark|pro",
+        message: "Usage: theme light|dark|pro|comet",
       };
     case "opacity": {
       const raw = value.trim().toLowerCase();
@@ -463,10 +471,13 @@ export function parseTerminalCommand(raw: string): TerminalCommand {
     case "clone":
     case "duplicate":
       return { kind: "tabClone" };
-    case "grok":
     case "coach":
     case "dsa":
       return { kind: "grok" };
+    case "study":
+    case "lesson":
+    case "lessons":
+      return { kind: "study" };
     case "assistant":
     case "chat":
     case "ai":
@@ -518,7 +529,8 @@ export const helpText = `ScratchCLI commands
   split / split 1|2|3|4     Split the editor into up to 4 panes
   tab list|new|clone|close  Manage editor tabs
   clone / duplicate         Clone the current note/file into a new tab
-  grok / coach / dsa        Open the DSA coach (Practice)
+  coach / dsa               Open the DSA coach (Practice)
+  study / lesson / lessons  Open guided lessons / Study board
   assistant / chat / ai     Open the general AI Assistant
   claude / codex            Launch agent CLIs in the in-app TTY (PATH required)
   snip [id] / snippet list Insert a DSA snippet (or list ids)
@@ -540,7 +552,7 @@ export const helpText = `ScratchCLI commands
   /wsl <command>            Run (or host interactively) via WSL
   Interactive tools (vim, …) also open inside ScratchCLI’s TTY.
   Prefer claude / codex commands above for PATH preflight + friendly errors.
-  theme light|dark|pro      Change the application theme
+  theme light|dark|pro|comet Change the application theme
   env / aisettings          AI environment (API keys, Ollama URLs)
   opacity on|off            Transparency on (restore) or off (solid 100%)
   opacity 0-100 | 0-1       Set opacity (e.g. opacity 70 or opacity 0.7)

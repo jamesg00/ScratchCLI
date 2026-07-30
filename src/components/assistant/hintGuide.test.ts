@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   applyLineNumberHints,
   codeSkeleton,
+  countHintComments,
   extractGuideAnnotation,
   isExplicitSolutionRequest,
   isGuideOnlyAnnotation,
   mergeHintCommentsIntoBuffer,
   resolveGuideFromReply,
   stripFullFileFencesFromReply,
+  stripHintComments,
   wrapFreeformCoachPrompt,
 } from "./hintGuide";
 
@@ -73,6 +75,12 @@ describe("applyLineNumberHints", () => {
     expect(result?.annotated).toContain("# HINT: check this assignment");
     expect(result?.annotated.split("\n")[2]).toBe("b = 2");
   });
+
+  it("accepts markdown bullet line hints from local models", () => {
+    const result = applyLineNumberHints("a = 1\nb = 2", "- **L2:** check this value");
+    expect(result?.hintCount).toBe(1);
+    expect(result?.annotated).toContain("# HINT: check this value");
+  });
 });
 
 describe("mergeHintCommentsIntoBuffer", () => {
@@ -109,6 +117,32 @@ describe("resolveGuideFromReply", () => {
     const reply =
       "```python\ndef two_sum(nums, target):\n    # HINT: hash\n    pass\n```";
     expect(resolveGuideFromReply(reply, stub)?.hintCount).toBe(1);
+  });
+
+  it("replaces previous # HINT: comments instead of stacking them", () => {
+    const withOldHints = `def two_sum(nums, target):
+    # HINT: old nudge
+    pass
+`;
+    const reply = "L2: fresh nudge about hashing";
+    const result = resolveGuideFromReply(reply, withOldHints);
+    expect(result?.hintCount).toBe(1);
+    expect(result?.annotated).toContain("# HINT: fresh nudge about hashing");
+    expect(result?.annotated).not.toContain("# HINT: old nudge");
+    expect(countHintComments(result!.annotated)).toBe(1);
+  });
+});
+
+describe("stripHintComments", () => {
+  it("removes prior HINT lines and keeps code intact", () => {
+    const src = `def two_sum(nums, target):
+    # HINT: old
+    # HINT: also old
+    pass
+`;
+    const cleaned = stripHintComments(src);
+    expect(cleaned).not.toContain("# HINT:");
+    expect(codeSkeleton(cleaned)).toBe(codeSkeleton(stub));
   });
 });
 

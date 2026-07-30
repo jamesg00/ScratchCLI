@@ -17,6 +17,8 @@ export type ParsedExample = {
 export type ScaffoldResult = {
   file: PracticeFile;
   warnings: string[];
+  /** Cases with both an official LeetCode input and expected output. */
+  officialCaseCount: number;
 };
 
 const ENTITY_MAP: Record<string, string> = {
@@ -47,6 +49,8 @@ export function htmlToPlainText(html: string): string {
   );
   text = text.replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
   return text
+    .replace(/Example\s*(\d*)\s*:\s*\n+/g, (_, n) => `Example ${n || ""}:\n`)
+    .replace(/\n+(Input:|Output:|Explanation:)/g, "\n$1")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -221,6 +225,7 @@ export function buildLeetCodeScaffold(
   const warnings: string[] = [];
   const plain = htmlToPlainText(problem.content || "");
   const examples = parseExamplesFromText(plain);
+  const officialInputCount = problem.exampleTestcaseList.filter(Boolean).length;
   const pySnippet =
     problem.codeSnippets.find((s) => s.langSlug === "python3") ??
     problem.codeSnippets.find((s) => s.langSlug === "python");
@@ -237,15 +242,29 @@ export function buildLeetCodeScaffold(
 
   const fileName = `${problem.titleSlug.replace(/-/g, "_")}.py`;
   const tags = problem.topicTags.join(", ") || "—";
+  const conciseExamples =
+    examples.length > 0
+      ? [
+          "Examples:",
+          ...examples
+            .slice(0, 4)
+            .map(
+              (ex, index) =>
+                `- ${index + 1}. ${ex.rawInput} -> ${ex.rawOutput}`,
+            ),
+          "",
+        ].join("\n")
+      : "";
   const docBody = [
     `LeetCode ${problem.frontendId}. ${problem.title}`,
     `Difficulty: ${problem.difficulty}`,
     `Tags: ${tags}`,
     `URL: ${problem.url}`,
     "",
+    conciseExamples,
     plain.slice(0, 6000),
     "",
-    "Local tests use official examples only. Submit on LeetCode for the full judge.",
+    "Local submit requires at least 4 explicit passing cases. Add edge cases to CASES before submitting.",
   ].join("\n");
 
   let harness = "";
@@ -258,29 +277,39 @@ export function buildLeetCodeScaffold(
     print(${JSON.stringify(problem.url)})
 `;
   } else {
+    if (officialInputCount > examples.length) {
+      warnings.push(
+        `LeetCode supplied ${officialInputCount} official input(s), but only ${examples.length} had parseable expected output(s). The unmatched inputs were not added as tests so ScratchCLI never invents an expected answer.`,
+      );
+    }
+    if (examples.length < 4) {
+      warnings.push(
+        `LeetCode exposes ${examples.length} parseable official example(s). Add edge cases to CASES before local submit (minimum 4 cases).`,
+      );
+    }
     const caseLines = examples.map((ex) => {
       const args = orderArgs(ex.bindings, params);
       return `        (${toPythonLiteral(args)}, ${toPythonLiteral(ex.expected)}),`;
     });
     harness = `if __name__ == "__main__":
-    # Official examples only — full tests: ${problem.url}
-    test_cases = [
+    # Start with official examples, then add edge cases before local submit: ${problem.url}
+    CASES = [
 ${caseLines.join("\n")}
     ]
     passed = 0
     sol = Solution()
-    for i, (args, expected) in enumerate(test_cases, 1):
+    for i, (args, expected) in enumerate(CASES, 1):
         try:
             result = getattr(sol, ${JSON.stringify(method)})(*args)
             if result == expected:
-                print(f"Test {i}: PASS")
+                print(f"Test {i}: PASS (input {args!r})")
                 passed += 1
             else:
-                print(f"Test {i}: FAIL (got {result!r}, expected {expected!r})")
+                print(f"Test {i}: FAIL (input {args!r}; got {result!r}, expected {expected!r})")
         except Exception as e:
-            print(f"Test {i}: FAIL ({e})")
-    print(f"{passed}/{len(test_cases)} tests passed")
-    print("Submit on LeetCode for the full test suite.")
+            print(f"Test {i}: FAIL (input {args!r}; {e})")
+    print(f"{passed}/{len(CASES)} tests passed")
+    print("Add explicit edge cases before local submit (minimum 4 cases).")
 `;
   }
 
@@ -298,5 +327,6 @@ ${harness}`;
   return {
     file: { fileName, content: content.trimEnd() + "\n" },
     warnings,
+    officialCaseCount: examples.length,
   };
 }

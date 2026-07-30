@@ -56,6 +56,17 @@ export function countHintComments(src: string): number {
   return src.split(/\r?\n/).filter((line) => HINT_LINE.test(line)).length;
 }
 
+/** Remove prior ScratchCLI `# HINT:` lines so a new hint pass replaces them. */
+export function stripHintComments(src: string): string {
+  const endedWithNl = /\r?\n$/.test(src);
+  const out = src
+    .split(/\r?\n/)
+    .filter((line) => !HINT_LINE.test(line))
+    .join("\n");
+  if (!out) return endedWithNl ? "\n" : "";
+  return endedWithNl && !out.endsWith("\n") ? `${out}\n` : out;
+}
+
 /** Pull the best python fence from a coach reply (or null). */
 export function extractPythonFence(reply: string): string | null {
   const re = /```(?:python|py)?\s*\n([\s\S]*?)```/gi;
@@ -155,7 +166,10 @@ export function applyLineNumberHints(
   reply: string,
 ): HintGuideResult | null {
   const hints = new Map<number, string[]>();
-  for (const line of reply.split(/\r?\n/)) {
+  for (const rawLine of reply.split(/\r?\n/)) {
+    const line = rawLine
+      .replace(/^\s*(?:[-*]|\d+[.)])\s+/, "")
+      .replace(/\*\*/g, "");
     const m =
       line.match(/^\s*(?:L|line)\s*(\d+)\s*[:\-–—]\s*(.+)$/i) ??
       line.match(/^\s*(\d+)\s*[:\-–—]\s*(.+)$/);
@@ -231,11 +245,13 @@ export function resolveGuideFromReply(
   reply: string,
   original: string,
 ): HintGuideResult | null {
-  const fromLines = applyLineNumberHints(original, reply);
+  // Always replace prior hint comments instead of stacking duplicates.
+  const cleaned = stripHintComments(original);
+  const fromLines = applyLineNumberHints(cleaned, reply);
   if (fromLines) return fromLines;
   const fenced = extractPythonFence(reply);
   if (fenced) {
-    return mergeHintCommentsIntoBuffer(original, fenced);
+    return mergeHintCommentsIntoBuffer(cleaned, fenced);
   }
   return null;
 }
@@ -302,7 +318,8 @@ export function wrapFreeformCoachPrompt(question: string): {
       allowFullCode: true,
       guideBuffer: false,
       prompt: [
-        "The user EXPLICITLY asked for a full implementation/solution.",
+        "The user EXPLICITLY asked for a full implementation/solution for the CURRENTLY OPEN editor file.",
+        "That open file is the practice problem — implement that one (read # FILE / # LC / docstring).",
         "You may provide a complete working Python solution with brief teaching comments.",
         `Their request: ${question.trim()}`,
       ].join("\n"),
@@ -313,7 +330,9 @@ export function wrapFreeformCoachPrompt(question: string): {
     allowFullCode: false,
     guideBuffer: false,
     prompt: [
-      "Answer the user's question as a DSA coach using the editor buffer as CONTEXT only.",
+      "Answer the user's question as a DSA coach about the CURRENTLY OPEN editor file.",
+      "That open practice file IS the problem they are doing — identify it from # FILE / # LC / the docstring.",
+      "Do NOT invent a new problem or ask which problem they mean when the editor buffer is present.",
       "",
       "STRICT RULES:",
       "1) Do NOT return their whole file, whole function, or a complete solution. Do NOT fill in `pass`.",

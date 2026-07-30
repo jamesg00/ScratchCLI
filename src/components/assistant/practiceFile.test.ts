@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { extractPracticeFile, expandPracticeCommand } from "./practiceFile";
+import {
+  extractPracticeFile,
+  expandPracticeCommand,
+  extractPracticeKey,
+  ensurePracticeTrackingLines,
+} from "./practiceFile";
 
 describe("extractPracticeFile", () => {
   it("pulls a fenced practice scaffold and file name", () => {
@@ -58,23 +63,16 @@ describe("extractPracticeFile", () => {
 });
 
 describe("expandPracticeCommand", () => {
-  it("routes easy/medium/oa to real LeetCode", () => {
-    expect(expandPracticeCommand("easy", "easy")).toEqual({
-      kind: "leetcode",
-      mode: "easy",
-    });
-    expect(expandPracticeCommand("medium", "medium")).toEqual({
-      kind: "leetcode",
-      mode: "medium",
-    });
-    expect(expandPracticeCommand("oa", "oa")).toEqual({
-      kind: "leetcode",
-      mode: "oa",
-    });
-    expect(expandPracticeCommand("next", "next")).toEqual({
-      kind: "leetcode",
-      mode: "oa",
-    });
+  it("routes easy/medium/oa/next to invent + seal (not LeetCode fetch)", () => {
+    for (const cmd of ["easy", "medium", "oa", "next"] as const) {
+      const result = expandPracticeCommand(cmd, cmd);
+      expect(result?.kind).toBe("grok");
+      if (result?.kind === "grok") {
+        expect(result.createFile).toBe(true);
+        expect(result.prompt).toMatch(/CASES/);
+        expect(result.prompt).toMatch(/INPUTS ONLY/);
+      }
+    }
   });
 
   it("routes invent to Grok create-file", () => {
@@ -98,6 +96,18 @@ describe("expandPracticeCommand", () => {
     expect(expandPracticeCommand("done", "done")).toEqual({ kind: "done" });
     expect(expandPracticeCommand("done reset", "done reset")).toEqual({
       kind: "done-reset",
+    });
+    expect(expandPracticeCommand("done list", "done list")).toEqual({
+      kind: "done-list",
+    });
+    expect(expandPracticeCommand("progress", "progress")).toEqual({
+      kind: "done-list",
+    });
+    expect(expandPracticeCommand("submit", "submit")).toEqual({
+      kind: "submit",
+    });
+    expect(expandPracticeCommand("grade", "grade")).toEqual({
+      kind: "submit",
     });
   });
 
@@ -131,5 +141,20 @@ describe("expandPracticeCommand", () => {
       expect(result.prompt).toMatch(/```viz/);
       expect(result.prompt).toMatch(/kind/);
     }
+  });
+});
+
+describe("extractPracticeKey / ensurePracticeTrackingLines", () => {
+  it("prefers # LC: then falls back to # FILE stem", () => {
+    expect(extractPracticeKey("# LC: two-sum\n")).toBe("two-sum");
+    expect(extractPracticeKey("# FILE: pair_sum.py\n")).toBe("pair-sum");
+  });
+
+  it("injects # LC from file stem when missing", () => {
+    const out = ensurePracticeTrackingLines({
+      fileName: "pair_sum.py",
+      content: "# FILE: pair_sum.py\ndef f():\n    pass\n",
+    });
+    expect(out.content).toMatch(/# LC: pair-sum/);
   });
 });

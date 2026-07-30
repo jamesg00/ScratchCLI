@@ -1,4 +1,4 @@
-import type { VizKind, VizPlan, VizStep } from "./vizPlan";
+import type { VizKind, VizPlan, VizStep, VizStructurePayload } from "./vizPlan";
 import {
   extractVizInputs,
   primaryArray,
@@ -23,6 +23,7 @@ function step(
   opts: {
     vars?: VizStep["vars"];
     arrays?: VizStep["arrays"];
+    structure?: VizStep["structure"];
     note?: string;
   } = {},
 ): VizStep {
@@ -625,6 +626,365 @@ def bubble_pass(${name}):
   };
 }
 
+function simTreeBfs(inputs: VizExtractedInputs): VizPlan | null {
+  const arr = primaryArray(inputs);
+  if (!arr || arr.values.length === 0) return null;
+
+  const values = arr.values.slice(0, 15);
+  const nodes = values.map((v, i) => ({
+    id: String(i),
+    label: String(v),
+  }));
+
+  const edges: Array<{ from: string; to: string }> = [];
+  for (let i = 0; i < values.length; i += 1) {
+    const left = 2 * i + 1;
+    const right = 2 * i + 2;
+    if (left < values.length) edges.push({ from: String(i), to: String(left) });
+    if (right < values.length) edges.push({ from: String(i), to: String(right) });
+  }
+
+  const code = codeLines(`
+from collections import deque
+def level_order(root):
+    if not root:
+        return []
+    q = deque([root])
+    out = []
+    while q:
+        node = q.popleft()
+        out.append(node)
+        left_i = 2*idx+1
+        right_i = 2*idx+2
+    return out
+`);
+
+  const structureFor = (stateById: Record<string, string>): VizStructurePayload => {
+    return {
+      kind: "tree",
+      rootId: "0",
+      nodes: nodes.map((n) => ({
+        id: n.id,
+        label: n.label,
+        state: stateById[n.id],
+      })),
+      edges: edges.map((e) => ({ from: e.from, to: e.to })),
+      visitedOrder: [],
+    };
+  };
+
+  const steps: VizStep[] = [];
+
+  const queue: number[] = [0];
+  const visited: number[] = [];
+
+  // Step 1: initial queue.
+  const initialState: Record<string, string> = {};
+  for (let i = 0; i < values.length; i += 1) {
+    initialState[String(i)] = queue.includes(i) ? "frontier" : "dimmed";
+  }
+  steps.push(
+    step(1, {
+      vars: { node: values[0] ?? null },
+      arrays: {
+        q: {
+          values: queue.map((i) => values[i]),
+          highlights: { "0": "front" },
+        },
+        out: { values: [], highlights: {} },
+        level: {
+          values,
+          highlights: { "0": "root" },
+        },
+      },
+      structure: structureFor(initialState),
+      note: "Start BFS from the tree root.",
+    }),
+  );
+
+  while (queue.length > 0 && steps.length < MAX_STEPS - 1) {
+    const idx = queue.shift()!;
+
+    // Visit + enqueue children.
+    visited.push(idx);
+    const left = 2 * idx + 1;
+    const right = 2 * idx + 2;
+    if (left < values.length) queue.push(left);
+    if (right < values.length) queue.push(right);
+
+    const outValues = visited.map((i) => values[i]);
+    const qValues = queue.map((i) => values[i]);
+
+    const stateById: Record<string, string> = {};
+    for (let i = 0; i < values.length; i += 1) {
+      const id = String(i);
+      if (i === idx) stateById[id] = "active";
+      else if (visited.includes(i)) stateById[id] = "visited";
+      else if (queue.includes(i)) stateById[id] = "frontier";
+      else stateById[id] = "dimmed";
+    }
+
+    const curHighlights: Record<string, string> = {};
+    visited.forEach((vIdx, pos) => {
+      if (vIdx === idx) curHighlights[String(pos)] = "cur";
+    });
+
+    const qHighlights: Record<string, string> = {};
+    if (queue.length > 0) qHighlights["0"] = "front";
+
+    steps.push(
+      step(6, {
+        vars: { node: values[idx] ?? null },
+        arrays: {
+          q: { values: qValues, highlights: qHighlights },
+          out: { values: outValues, highlights: curHighlights },
+          level: {
+            values,
+            highlights: {
+              [String(idx)]: "cur",
+            },
+          },
+        },
+        structure: {
+          ...structureFor(stateById),
+          visitedOrder: visited.map((i) => String(i)),
+        },
+        note: `Visit ${String(values[idx])}; enqueue children (if any).`,
+      }),
+    );
+  }
+
+  return {
+    kind: "tree",
+    title: "Tree — BFS (structure)",
+    code,
+    steps: steps.slice(0, MAX_STEPS),
+  };
+}
+
+function simGraphBfs(inputs: VizExtractedInputs): VizPlan | null {
+  const adj = inputs.graphAdj;
+  if (!adj || Object.keys(adj).length === 0) return null;
+
+  const allNodesSet = new Set<string>();
+  for (const [k, neighbors] of Object.entries(adj)) {
+    allNodesSet.add(k);
+    for (const n of neighbors) allNodesSet.add(String(n));
+  }
+  const allNodes = Array.from(allNodesSet);
+
+  const edges: Array<{ from: string; to: string }> = [];
+  for (const [from, neighbors] of Object.entries(adj)) {
+    for (const n of neighbors) {
+      edges.push({ from, to: String(n) });
+    }
+  }
+
+  const start =
+    allNodes.find((n) => n.toLowerCase() === "a") ?? allNodes[0] ?? null;
+  if (!start) return null;
+
+  const code = codeLines(`
+from collections import deque
+def bfs(graph, start):
+    seen = {start}
+    q = deque([start])
+    while q:
+        node = q.popleft()
+        for nxt in graph[node]:
+            if nxt not in seen:
+                seen.add(nxt)
+                q.append(nxt)
+    return seen
+`);
+
+  const structureFor = (
+    stateById: Record<string, string>,
+  ): VizStructurePayload => {
+    return {
+      kind: "graph",
+      nodes: allNodes.map((id) => ({
+        id,
+        label: id,
+        state: stateById[id],
+      })),
+      edges: edges.map((e) => ({ from: e.from, to: e.to })),
+      visitedOrder: [],
+    };
+  };
+
+  const queue: string[] = [start];
+  const seenOrder: string[] = [start];
+  const seen = new Set<string>(seenOrder);
+
+  const steps: VizStep[] = [];
+
+  // Initial step: frontier contains start.
+  const initialState: Record<string, string> = {};
+  for (const id of allNodes) {
+    initialState[id] = id === start ? "active" : "dimmed";
+  }
+  steps.push(
+    step(2, {
+      vars: { node: start },
+      arrays: {
+        q: { values: [start], highlights: { "0": "front" } },
+        seen: { values: [start], highlights: { "0": "cur" } },
+      },
+      structure: structureFor(initialState),
+      note: "Start BFS from the chosen node.",
+    }),
+  );
+
+  while (queue.length > 0 && steps.length < MAX_STEPS - 1) {
+    const node = queue.shift()!;
+    const neighbors = adj[node] ?? [];
+
+    for (const nxtRaw of neighbors) {
+      const nxt = String(nxtRaw);
+      if (!seen.has(nxt)) {
+        seen.add(nxt);
+        seenOrder.push(nxt);
+        queue.push(nxt);
+      }
+    }
+
+    const stateById: Record<string, string> = {};
+    for (const id of allNodes) {
+      if (id === node) stateById[id] = "active";
+      else if (queue.includes(id)) stateById[id] = "frontier";
+      else if (seen.has(id)) stateById[id] = "visited";
+      else stateById[id] = "dimmed";
+    }
+
+    const seenHighlights: Record<string, string> = {};
+    const curPos = seenOrder.indexOf(node);
+    if (curPos >= 0) seenHighlights[String(curPos)] = "cur";
+    const qHighlights: Record<string, string> = {};
+    if (queue.length > 0) qHighlights["0"] = "front";
+
+    steps.push(
+      step(5, {
+        vars: { node },
+        arrays: {
+          q: { values: [...queue], highlights: qHighlights },
+          seen: { values: [...seenOrder], highlights: seenHighlights },
+        },
+        structure: {
+          ...structureFor(stateById),
+          visitedOrder: [...seenOrder],
+        },
+        note: `Dequeue ${node} → discover more neighbors into the queue.`,
+      }),
+    );
+  }
+
+  return {
+    kind: "graph_bfs",
+    title: "Graph BFS — structure",
+    code,
+    steps: steps.slice(0, MAX_STEPS),
+  };
+}
+
+function simGraphDfs(inputs: VizExtractedInputs): VizPlan | null {
+  const adj = inputs.graphAdj;
+  if (!adj || Object.keys(adj).length === 0) return null;
+
+  const allNodesSet = new Set<string>();
+  for (const [k, neighbors] of Object.entries(adj)) {
+    allNodesSet.add(k);
+    for (const n of neighbors) allNodesSet.add(String(n));
+  }
+  const allNodes = Array.from(allNodesSet);
+
+  const edges: Array<{ from: string; to: string }> = [];
+  for (const [from, neighbors] of Object.entries(adj)) {
+    for (const n of neighbors) edges.push({ from, to: String(n) });
+  }
+
+  const start =
+    allNodes.find((n) => n.toLowerCase() === "a") ?? allNodes[0] ?? null;
+  if (!start) return null;
+
+  const code = codeLines(`
+def dfs(graph, node, seen=None):
+    if seen is None:
+        seen = set()
+    seen.add(node)
+    for nxt in graph[node]:
+        if nxt not in seen:
+            dfs(graph, nxt, seen)
+    return seen
+`);
+
+  const structureFor = (
+    stateById: Record<string, string>,
+  ): VizStructurePayload => {
+    return {
+      kind: "graph",
+      nodes: allNodes.map((id) => ({
+        id,
+        label: id,
+        state: stateById[id],
+      })),
+      edges: edges.map((e) => ({ from: e.from, to: e.to })),
+      visitedOrder: [],
+    };
+  };
+
+  const seen = new Set<string>();
+  const seenOrder: string[] = [];
+
+  const steps: VizStep[] = [];
+
+  const stack: string[] = [start];
+  while (stack.length > 0 && steps.length < MAX_STEPS - 1) {
+    const node = stack.pop()!;
+    if (seen.has(node)) continue;
+    seen.add(node);
+    seenOrder.push(node);
+
+    // Push neighbors (reverse so the first neighbor is explored first-ish).
+    const neighbors = (adj[node] ?? []).map(String).reverse();
+    for (const nxt of neighbors) {
+      if (!seen.has(nxt)) stack.push(nxt);
+    }
+
+    const stateById: Record<string, string> = {};
+    for (const id of allNodes) {
+      if (id === node) stateById[id] = "active";
+      else if (seen.has(id)) stateById[id] = "visited";
+      else stateById[id] = "dimmed";
+    }
+
+    const seenHighlights: Record<string, string> = {};
+    const curPos = seenOrder.indexOf(node);
+    if (curPos >= 0) seenHighlights[String(curPos)] = "cur";
+
+    steps.push(
+      step(3, {
+        vars: { node },
+        arrays: {
+          seen: { values: [...seenOrder], highlights: seenHighlights },
+        },
+        structure: {
+          ...structureFor(stateById),
+          visitedOrder: [...seenOrder],
+        },
+        note: `DFS visit ${node}.`,
+      }),
+    );
+  }
+
+  return {
+    kind: "graph_dfs",
+    title: "Graph DFS — structure",
+    code,
+    steps: steps.slice(0, MAX_STEPS),
+  };
+}
+
 /** Build a free local plan from extracted inputs for a pattern, or null. */
 export function simulateVizPlan(
   kind: VizKind,
@@ -647,6 +1007,12 @@ export function simulateVizPlan(
       return simStringWalk(inputs) ?? simStack(inputs);
     case "sort":
       return simSort(inputs);
+    case "tree":
+      return simTreeBfs(inputs);
+    case "graph_bfs":
+      return simGraphBfs(inputs);
+    case "graph_dfs":
+      return simGraphDfs(inputs);
     default:
       return null;
   }

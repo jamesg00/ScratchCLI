@@ -642,6 +642,7 @@ pub async fn chat_completion(
     system_prompt: Option<String>,
     language: Option<String>,
     buffer: Option<String>,
+    context_override: Option<String>,
     include_context: Option<bool>,
     model: Option<String>,
     api_key: Option<String>,
@@ -659,7 +660,7 @@ pub async fn chat_completion(
         .unwrap_or_else(|| {
             "You are ScratchCLI Assistant: a helpful local-first coding assistant for desktop developers. \
 Be concise and practical. Prefer clear explanations and small code excerpts. \
-When the editor buffer is provided, use it as context but do not dump the whole file unless asked."
+When an editor buffer / open file is provided, that open file is what the user is working on - answer about that file. Do not invent a different file or problem. Use the buffer as context; do not dump the whole file unless asked."
                 .into()
         });
 
@@ -675,19 +676,30 @@ When the editor buffer is provided, use it as context but do not dump the whole 
     let include_context = include_context.unwrap_or(true);
     let mut user_content = String::new();
     if include_context {
-        let language = language
+        let override_text = context_override
             .as_deref()
-            .unwrap_or("plaintext")
-            .trim()
-            .to_string();
-        let buffer = buffer.as_deref().unwrap_or("").trim();
-        if !buffer.is_empty() {
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        if let Some(override_text) = override_text {
+            user_content.push_str(override_text);
+            if !override_text.ends_with("\n\n") {
+                user_content.push_str("\n\n");
+            }
+        } else {
+            let language = language
+                .as_deref()
+                .unwrap_or("plaintext")
+                .trim()
+                .to_string();
+            let buffer = buffer.as_deref().unwrap_or("").trim();
+            if !buffer.is_empty() {
             user_content.push_str(&format!(
                 "Editor language: {language}\n\
 Lines are numbered (N|code) for reference.\n\n\
 Editor buffer:\n```{language}\n{}\n```\n\n",
                 numbered_buffer(&truncate_buffer(buffer))
             ));
+            }
         }
     }
     user_content.push_str(question);
@@ -696,8 +708,14 @@ Editor buffer:\n```{language}\n{}\n```\n\n",
         content: user_content,
     });
 
+    let temperature = if matches!(provider, ChatProvider::Ollama | ChatProvider::Lmstudio) {
+        0.2
+    } else {
+        0.4
+    };
+
     run_chat(
-        provider, model, system, messages, api_key, base_url, 0.4, on_token,
+        provider, model, system, messages, api_key, base_url, temperature, on_token,
     )
     .await
 }

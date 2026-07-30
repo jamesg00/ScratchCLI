@@ -83,7 +83,7 @@ export function RecentNotesMenu({
   settingsActions,
   toolActions,
 }: Props) {
-  const detailsRef = useRef<HTMLDetailsElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
 
   const recent = useMemo(() => {
@@ -96,26 +96,33 @@ export function RecentNotesMenu({
       .slice(0, 10);
   }, [notes]);
 
-  const close = () => {
-    if (detailsRef.current) detailsRef.current.open = false;
-    setOpen(false);
-  };
+  const close = () => setOpen(false);
 
   const run = (action: () => void) => {
     close();
-    action();
+    // Let the menu finish closing before opening a dialog. This keeps the
+    // dialog above the menu and avoids a competing title-bar interaction.
+    window.requestAnimationFrame(action);
+  };
+
+  const toggle = () => {
+    setOpen((current) => {
+      const next = !current;
+      if (next) onRefresh?.();
+      return next;
+    });
   };
 
   useEffect(() => {
+    if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
-      const details = detailsRef.current;
-      if (!details?.open) return;
+      const root = rootRef.current;
       const target = event.target;
-      if (target instanceof Node && details.contains(target)) return;
+      if (target instanceof Node && root?.contains(target)) return;
       close();
     };
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && detailsRef.current?.open) {
+      if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
         close();
@@ -127,166 +134,179 @@ export function RecentNotesMenu({
       document.removeEventListener("pointerdown", onPointerDown, true);
       window.removeEventListener("keydown", onKey, true);
     };
-  }, []);
+  }, [open]);
 
   return (
-    <details
-      ref={detailsRef}
+    <div
+      ref={rootRef}
       className="recent-notes-menu"
-      onToggle={(event) => {
-        const next = event.currentTarget.open;
-        setOpen(next);
-        if (next) onRefresh?.();
-      }}
+      data-open={open ? "1" : "0"}
     >
-      <summary
+      <button
+        type="button"
         className="sticky-header-button recent-notes-trigger"
         aria-label="Menu"
         title="Menu"
         aria-expanded={open}
+        aria-controls="app-menu-panel"
+        onClick={toggle}
       >
         <span className="recent-notes-bars" aria-hidden="true">
           <i />
           <i />
           <i />
         </span>
-      </summary>
+      </button>
       <div
-        className="recent-notes-panel app-menu-panel"
-        role="menu"
-        aria-label="Menu"
+        className="recent-notes-shell"
+        data-open={open ? "1" : "0"}
       >
-        <MenuSection label="Notes">
-          <header className="recent-notes-head">
-            <div>
-              <strong>Recent</strong>
-              <span>Pinned first</span>
-            </div>
-            <div className="app-menu-note-actions">
-              <button
-                type="button"
-                className="recent-notes-new"
-                onClick={() => run(onNew)}
-              >
-                + New
-              </button>
-              <button
-                type="button"
-                className="recent-notes-new"
-                onClick={() => run(onNotesLibrary)}
-              >
-                Library
-              </button>
-            </div>
-          </header>
-          <div className="recent-notes-list">
-            {recent.length === 0 ? (
-              <div className="recent-notes-empty">
-                <p>No notes yet</p>
-                <button type="button" onClick={() => run(onNew)}>
-                  Create note
-                </button>
-              </div>
-            ) : (
-              recent.map((note, index) => (
-                <button
-                  key={note.id}
-                  type="button"
-                  className="recent-notes-item"
-                  data-color={note.color}
-                  style={{ animationDelay: `${index * 28}ms` }}
-                  role="menuitem"
-                  onClick={() => run(() => onOpen(note.id))}
-                >
-                  <span className="recent-notes-swatch" aria-hidden="true" />
-                  <span className="recent-notes-body">
-                    <span className="recent-notes-title-row">
-                      <span className="recent-notes-title">
-                        {note.isPinned ? "[pin] " : ""}
-                        {noteTitle(note)}
+        <div className="recent-notes-clip">
+          <div
+            id="app-menu-panel"
+            className="recent-notes-panel app-menu-panel"
+            role="menu"
+            aria-label="Menu"
+            aria-hidden={!open}
+          >
+            {settingsActions.length > 0 && (
+              <MenuSection label="Settings">
+                {settingsActions.map((action) => (
+                  <button
+                    key={action.label}
+                    type="button"
+                    className="app-menu-item"
+                    role="menuitem"
+                    tabIndex={open ? 0 : -1}
+                    onClick={() => run(action.onClick)}
+                  >
+                    <span>{action.label}</span>
+                    {action.shortcut ? <kbd>{action.shortcut}</kbd> : null}
+                  </button>
+                ))}
+              </MenuSection>
+            )}
+
+            <MenuSection label="Notes">
+              <header className="recent-notes-head">
+                <div>
+                  <strong>Recent</strong>
+                  <span>Pinned first</span>
+                </div>
+                <div className="app-menu-note-actions">
+                  <button
+                    type="button"
+                    className="recent-notes-new"
+                    onClick={() => run(onNew)}
+                  >
+                    + New
+                  </button>
+                  <button
+                    type="button"
+                    className="recent-notes-new"
+                    onClick={() => run(onNotesLibrary)}
+                  >
+                    Library
+                  </button>
+                </div>
+              </header>
+              <div className="recent-notes-list">
+                {recent.length === 0 ? (
+                  <div className="recent-notes-empty">
+                    <p>No notes yet</p>
+                    <button type="button" onClick={() => run(onNew)}>
+                      Create note
+                    </button>
+                  </div>
+                ) : (
+                  recent.map((note, index) => (
+                    <button
+                      key={note.id}
+                      type="button"
+                      className="recent-notes-item"
+                      data-color={note.color}
+                      style={{ animationDelay: `${index * 28}ms` }}
+                      role="menuitem"
+                      tabIndex={open ? 0 : -1}
+                      onClick={() => run(() => onOpen(note.id))}
+                    >
+                      <span className="recent-notes-swatch" aria-hidden="true" />
+                      <span className="recent-notes-body">
+                        <span className="recent-notes-title-row">
+                          <span className="recent-notes-title">
+                            {note.isPinned ? "[pin] " : ""}
+                            {noteTitle(note)}
+                          </span>
+                          <time dateTime={note.updatedAt}>
+                            {relativeTime(note.updatedAt)}
+                          </time>
+                        </span>
+                        <span className="recent-notes-preview">
+                          {previewText(note.content)}
+                        </span>
                       </span>
-                      <time dateTime={note.updatedAt}>
-                        {relativeTime(note.updatedAt)}
-                      </time>
-                    </span>
-                    <span className="recent-notes-preview">
-                      {previewText(note.content)}
-                    </span>
-                  </span>
-                </button>
-              ))
+                    </button>
+                  ))
+                )}
+              </div>
+            </MenuSection>
+
+            {fileActions.length > 0 && (
+              <MenuSection label="File">
+                {fileActions.map((action) => (
+                  <button
+                    key={action.label}
+                    type="button"
+                    className="app-menu-item"
+                    role="menuitem"
+                    tabIndex={open ? 0 : -1}
+                    onClick={() => run(action.onClick)}
+                  >
+                    <span>{action.label}</span>
+                    {action.shortcut ? <kbd>{action.shortcut}</kbd> : null}
+                  </button>
+                ))}
+              </MenuSection>
+            )}
+
+            {editActions.length > 0 && (
+              <MenuSection label="Edit">
+                {editActions.map((action) => (
+                  <button
+                    key={action.label}
+                    type="button"
+                    className="app-menu-item"
+                    role="menuitem"
+                    tabIndex={open ? 0 : -1}
+                    onClick={() => run(action.onClick)}
+                  >
+                    <span>{action.label}</span>
+                    {action.shortcut ? <kbd>{action.shortcut}</kbd> : null}
+                  </button>
+                ))}
+              </MenuSection>
+            )}
+
+            {toolActions.length > 0 && (
+              <MenuSection label="Tools">
+                {toolActions.map((action) => (
+                  <button
+                    key={action.label}
+                    type="button"
+                    className="app-menu-item"
+                    role="menuitem"
+                    tabIndex={open ? 0 : -1}
+                    onClick={() => run(action.onClick)}
+                  >
+                    <span>{action.label}</span>
+                    {action.shortcut ? <kbd>{action.shortcut}</kbd> : null}
+                  </button>
+                ))}
+              </MenuSection>
             )}
           </div>
-        </MenuSection>
-
-        {fileActions.length > 0 && (
-          <MenuSection label="File">
-            {fileActions.map((action) => (
-              <button
-                key={action.label}
-                type="button"
-                className="app-menu-item"
-                role="menuitem"
-                onClick={() => run(action.onClick)}
-              >
-                <span>{action.label}</span>
-                {action.shortcut ? <kbd>{action.shortcut}</kbd> : null}
-              </button>
-            ))}
-          </MenuSection>
-        )}
-
-        {editActions.length > 0 && (
-          <MenuSection label="Edit">
-            {editActions.map((action) => (
-              <button
-                key={action.label}
-                type="button"
-                className="app-menu-item"
-                role="menuitem"
-                onClick={() => run(action.onClick)}
-              >
-                <span>{action.label}</span>
-                {action.shortcut ? <kbd>{action.shortcut}</kbd> : null}
-              </button>
-            ))}
-          </MenuSection>
-        )}
-
-        {settingsActions.length > 0 && (
-          <MenuSection label="Settings">
-            {settingsActions.map((action) => (
-              <button
-                key={action.label}
-                type="button"
-                className="app-menu-item"
-                role="menuitem"
-                onClick={() => run(action.onClick)}
-              >
-                <span>{action.label}</span>
-                {action.shortcut ? <kbd>{action.shortcut}</kbd> : null}
-              </button>
-            ))}
-          </MenuSection>
-        )}
-
-        {toolActions.length > 0 && (
-          <MenuSection label="Tools">
-            {toolActions.map((action) => (
-              <button
-                key={action.label}
-                type="button"
-                className="app-menu-item"
-                role="menuitem"
-                onClick={() => run(action.onClick)}
-              >
-                <span>{action.label}</span>
-                {action.shortcut ? <kbd>{action.shortcut}</kbd> : null}
-              </button>
-            ))}
-          </MenuSection>
-        )}
+        </div>
       </div>
-    </details>
+    </div>
   );
 }

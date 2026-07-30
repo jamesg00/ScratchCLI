@@ -6,6 +6,9 @@ use std::time::{Duration, Instant};
 
 const GRAPHQL_URL: &str = "https://leetcode.com/graphql";
 const LIST_CACHE_TTL: Duration = Duration::from_secs(600);
+const COMPANY_DATA_URL: &str =
+    "https://raw.githubusercontent.com/seanprashad/leetcode-patterns/main/src/data/questions.json";
+const COMPANY_CACHE_TTL: Duration = Duration::from_secs(60 * 60 * 12);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -49,9 +52,58 @@ struct ListCacheEntry {
     items: Vec<LeetCodeListItem>,
 }
 
+#[derive(Default)]
+struct CompanyCacheEntry {
+    fetched_at: Option<Instant>,
+    problems: Vec<CompanyProblem>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct SeanQuestionsFile {
+    data: Vec<SeanQuestion>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct SeanQuestion {
+    id: u32,
+    title: String,
+    slug: String,
+    pattern: Vec<String>,
+    difficulty: String,
+    premium: bool,
+    companies: Vec<SeanCompanyRef>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct SeanCompanyRef {
+    name: String,
+    slug: String,
+    frequency: u32,
+}
+
+#[derive(Debug, Clone)]
+struct CompanyProblem {
+    item: LeetCodeListItem,
+    companies: Vec<SeanCompanyRef>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LeetCodeCompanyInfo {
+    pub name: String,
+    pub slug: String,
+    pub question_count: u32,
+    pub total_frequency: u32,
+}
+
 fn list_cache() -> &'static Mutex<ListCacheEntry> {
     static CACHE: OnceLock<Mutex<ListCacheEntry>> = OnceLock::new();
     CACHE.get_or_init(|| Mutex::new(ListCacheEntry::default()))
+}
+
+fn company_cache() -> &'static Mutex<CompanyCacheEntry> {
+    static CACHE: OnceLock<Mutex<CompanyCacheEntry>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(CompanyCacheEntry::default()))
 }
 
 fn lc_error(message: impl Into<String>, retryable: bool) -> AppError {
@@ -112,6 +164,60 @@ async fn graphql(query: &str, variables: Value) -> Result<Value, AppError> {
     }
 
     Ok(parsed)
+}
+
+async fn fetch_company_problems() -> Result<Vec<CompanyProblem>, AppError> {
+    if let Ok(cache) = company_cache().lock() {
+        if let Some(at) = cache.fetched_at {
+            if at.elapsed() < COMPANY_CACHE_TTL {
+                return Ok(cache.problems.clone());
+            }
+        }
+    }
+
+    let response = client()?
+        .get(COMPANY_DATA_URL)
+        .send()
+        .await
+        .map_err(|error| lc_error(format!("Could not reach company patterns list: {error}"), true))?;
+    let status = response.status();
+    let text = response
+        .text()
+        .await
+        .map_err(|_| lc_error("Company patterns list returned an unreadable response.", true))?;
+    if !status.is_success() {
+        return Err(lc_error(
+            format!(
+                "Company patterns list HTTP {} — try again in a moment.",
+                status.as_u16()
+            ),
+            true,
+        ));
+    }
+    let parsed: SeanQuestionsFile = serde_json::from_str(&text)
+        .map_err(|_| lc_error("Company patterns list returned invalid JSON.", true))?;
+
+    let problems: Vec<CompanyProblem> = parsed
+        .data
+        .into_iter()
+        .map(|question| CompanyProblem {
+            item: LeetCodeListItem {
+                title: question.title,
+                title_slug: question.slug,
+                difficulty: question.difficulty,
+                paid_only: question.premium,
+                frontend_id: question.id.to_string(),
+                topic_tags: question.pattern,
+            },
+            companies: question.companies,
+        })
+        .collect();
+
+    if let Ok(mut cache) = company_cache().lock() {
+        cache.fetched_at = Some(Instant::now());
+        cache.problems = problems.clone();
+    }
+    Ok(problems)
 }
 
 fn parse_list_items(data: &Value) -> Vec<LeetCodeListItem> {
@@ -293,6 +399,79 @@ pub async fn leetcode_list_problems(
     }
 
     Ok(free)
+}
+
+#[tauri::command]
+pub async fn leetcode_list_companies() -> Result<Vec<LeetCodeCompanyInfo>, AppError> {
+    let problems = fetch_company_problems().await?;
+    let mut map = std::collections::BTreeMap::<String, LeetCodeCompanyInfo>::new();
+    for problem in problems.iter().filter(|problem| !problem.item.paid_only) {
+        for company in &problem.companies {
+            let entry = map.entry(company.slug.clone()).or_insert(LeetCodeCompanyInfo {
+                name: company.name.clone(),
+                slug: company.slug.clone(),
+                question_count: 0,
+                total_frequency: 0,
+            });
+            entry.question_count += 1;
+            entry.total_frequency += company.frequency;
+        }
+    }
+    let mut companies: Vec<_> = map.into_values().collect();
+    companies.sort_by(|a, b| {
+        b.total_frequency
+            .cmp(&a.total_frequency)
+            .then_with(|| b.question_count.cmp(&a.question_count))
+            .then_with(|| a.name.cmp(&b.name))
+    });
+    Ok(companies)
+}
+
+#[tauri::command]
+pub async fn leetcode_list_company_problems(
+    company_slug: String,
+    difficulty: Option<String>,
+    limit: Option<u32>,
+    skip: Option<u32>,
+) -> Result<Vec<LeetCodeListItem>, AppError> {
+    let company_slug = company_slug.trim().to_ascii_lowercase();
+    if company_slug.is_empty() {
+        return Err(lc_error("Choose a company first.", false));
+    }
+    let difficulty = difficulty.unwrap_or_default().trim().to_ascii_lowercase();
+    let limit = limit.unwrap_or(50).clamp(1, 100) as usize;
+    let skip = skip.unwrap_or(0) as usize;
+    let problems = fetch_company_problems().await?;
+    let mut filtered: Vec<(LeetCodeListItem, u32)> = problems
+        .into_iter()
+        .filter(|problem| !problem.item.paid_only)
+        .filter_map(|problem| {
+            let freq = problem
+                .companies
+                .iter()
+                .find(|company| company.slug.eq_ignore_ascii_case(&company_slug))
+                .map(|company| company.frequency)?;
+            if matches!(difficulty.as_str(), "easy" | "medium" | "hard")
+                && !problem.item.difficulty.eq_ignore_ascii_case(&difficulty)
+            {
+                return None;
+            }
+            Some((problem.item, freq))
+        })
+        .collect();
+
+    filtered.sort_by(|a, b| {
+        b.1.cmp(&a.1)
+            .then_with(|| a.0.paid_only.cmp(&b.0.paid_only))
+            .then_with(|| a.0.title.cmp(&b.0.title))
+    });
+
+    Ok(filtered
+        .into_iter()
+        .skip(skip)
+        .take(limit)
+        .map(|(item, _)| item)
+        .collect())
 }
 
 #[tauri::command]

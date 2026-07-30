@@ -1,7 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
-import { useAppearanceStore } from "../../stores/appearanceStore";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useAiSettingsStore } from "../../stores/aiSettingsStore";
 import { normalizeError } from "../../types/error";
-import { grokChat } from "../../services/grok";
+import { coachChat } from "../../services/coachChat";
+import {
+  buildChatContextPayload,
+  createChatContextCache,
+} from "../../services/chatContext";
+import { isLocalProvider } from "../../services/aiModels";
 import { CodeVizPlayer } from "./CodeVizPlayer";
 import type { VizKind, VizPlan } from "./vizPlan";
 import {
@@ -48,7 +53,8 @@ export function VisualizeDialog({
   onClose,
   initialKind,
 }: Props) {
-  const apiKey = useAppearanceStore((state) => state.grokApiKey) ?? "";
+  const ai = useAiSettingsStore();
+  const contextCacheRef = useRef(createChatContextCache());
   const templates = useMemo(() => listVizTemplates(), []);
   const extracted = useMemo(() => extractVizInputs(buffer), [buffer]);
   const initial = useMemo(
@@ -68,6 +74,9 @@ export function VisualizeDialog({
   const [intro, setIntro] = useState(() =>
     introForLocal(initial.source, initial.kind, initial.summary),
   );
+  const [view, setView] = useState<"topics" | "player">(
+    initialKind ? "player" : "topics",
+  );
 
   const patternsInCategory = useMemo(
     () => kindsForCategory(category),
@@ -86,18 +95,23 @@ export function VisualizeDialog({
     setCaseIndex(0);
     setIntro(introForLocal(next.source, next.kind, next.summary));
     setAiError(null);
+    setView(initialKind ? "player" : "topics");
   }, [buffer, initialKind]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
+        if (view === "player") {
+          setView("topics");
+          return;
+        }
         onClose();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, view]);
 
   const applyTemplate = (next: VizKind) => {
     setKind(next);
@@ -107,6 +121,11 @@ export function VisualizeDialog({
     setPlan(getLocalVizTemplate(next));
     setAiError(null);
     setIntro(introForLocal("template", next));
+  };
+
+  const openPattern = (next: VizKind) => {
+    applyTemplate(next);
+    setView("player");
   };
 
   const applyFromFile = (nextKind?: VizKind) => {
@@ -148,27 +167,38 @@ export function VisualizeDialog({
   };
 
   const runAi = async () => {
-    if (!apiKey.trim()) {
-      setAiError("Add a Grok API key in AI keys to use AI viz.");
-      return;
-    }
     setAiLoading(true);
     setAiError(null);
     try {
-      const result = await grokChat({
-        apiKey,
-        question: buildVizPrompt({
-          focus: `Prefer kind=${kind} if it fits; otherwise pick the best kind. Use asserts/examples from the buffer when present.`,
-        }),
+      const question = buildVizPrompt({
+        focus: `Prefer kind=${kind} if it fits; otherwise pick the best kind. Use asserts/examples from the buffer when present.`,
+      });
+      const context = buildChatContextPayload({
+        cache: contextCacheRef.current,
+        provider: ai.coachProvider,
+        model: ai.coachModel,
         language,
         buffer,
+        isLocal: isLocalProvider(ai.coachProvider),
+        localMode: ai.localContextMode,
+        question,
+        history: [],
+      });
+      const result = await coachChat({
+        provider: ai.coachProvider,
+        model: ai.coachModel,
+        settings: ai,
+        question,
+        language,
+        buffer: context.buffer,
+        contextOverride: context.contextOverride,
         includeContext: true,
         history: [],
       });
       const parsed = extractVizPlanFromReply(result.reply);
       if (!parsed) {
         setAiError(
-          "Grok replied but no playable viz was found. Local template is still available.",
+          "Coach replied but no playable viz was found. Local template is still available.",
         );
         return;
       }
@@ -193,18 +223,22 @@ export function VisualizeDialog({
   const kindLabel = plan.kind
     ? VIZ_KIND_LABELS[plan.kind]
     : VIZ_KIND_LABELS[kind];
-  const title = plan.title || kindLabel || "Visualize";
+  const title =
+    view === "topics" ? "Visualize topics" : plan.title || kindLabel || "Visualize";
   const modeTag =
-    mode === "ai"
-      ? " · AI"
-      : localSource === "template"
-        ? " · free demo"
-        : " · free from file";
+    view === "topics"
+      ? " · pick a pattern"
+      : mode === "ai"
+        ? " · AI"
+        : localSource === "template"
+          ? " · free demo"
+          : " · free from file";
 
   return (
     <div className="dialog-backdrop" role="presentation" onClick={onClose}>
       <section
         className="visualize-dialog"
+        data-view={view}
         role="dialog"
         aria-modal="true"
         aria-labelledby="visualize-title"
@@ -214,7 +248,7 @@ export function VisualizeDialog({
           <div className="visualize-heading">
             <h2 id="visualize-title">{title}</h2>
             <span className="visualize-kind">
-              {kindLabel}
+              {view === "topics" ? "All categories" : kindLabel}
               {modeTag}
             </span>
           </div>
@@ -223,92 +257,130 @@ export function VisualizeDialog({
           </button>
         </header>
 
-        <div className="visualize-toolbar">
-          <label className="visualize-select">
-            <span>Category</span>
-            <select
-              value={category}
-              onChange={(event) =>
-                onCategoryChange(event.target.value as VizCategoryId)
-              }
-            >
+        {view === "topics" ? (
+          <div className="visualize-body">
+            <div className="visualize-topics">
+              <p className="visualize-topics-lead">
+                Pick a DSA pattern for a free local walkthrough. Esc closes.
+              </p>
               {VIZ_CATEGORIES.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.label}
-                </option>
+                <section key={item.id} className="visualize-topic-card">
+                  <h3>{item.label}</h3>
+                  <div className="visualize-topic-patterns">
+                    {item.kinds.map((pattern) => (
+                      <button
+                        key={pattern}
+                        type="button"
+                        onClick={() => openPattern(pattern)}
+                      >
+                        {VIZ_KIND_LABELS[pattern]}
+                      </button>
+                    ))}
+                  </div>
+                </section>
               ))}
-            </select>
-          </label>
-          <label className="visualize-select">
-            <span>Pattern</span>
-            <select
-              value={kind}
-              onChange={(event) => applyTemplate(event.target.value as VizKind)}
-            >
-              {(patternsInCategory.length > 0
-                ? patternsInCategory
-                : templates.map((t) => t.kind)
-              ).map((item) => (
-                <option key={item} value={item}>
-                  {VIZ_KIND_LABELS[item]}
-                </option>
-              ))}
-            </select>
-          </label>
-          {cases.length > 0 ? (
-            <label className="visualize-select">
-              <span>Case</span>
-              <select
-                value={caseIndex}
-                onChange={(event) => applyCase(Number(event.target.value))}
-              >
-                {cases.map((item, index) => (
-                  <option key={`${item.name}-${index}`} value={index}>
-                    {item.name}=[{item.values.slice(0, 6).join(",")}
-                    {item.values.length > 6 ? ",…" : ""}]
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-          <button
-            type="button"
-            className="visualize-local-btn"
-            onClick={() => applyTemplate(kind)}
-          >
-            Use template
-          </button>
-          <button
-            type="button"
-            className="visualize-file-btn"
-            onClick={() => applyFromFile(kind)}
-            title="Seed steps from arrays/strings in the open editor (no credits)"
-          >
-            From my file
-          </button>
-          <button
-            type="button"
-            className="visualize-ai-btn"
-            disabled={aiLoading}
-            onClick={() => void runAi()}
-            title="Optional — spends Grok credits"
-          >
-            {aiLoading ? "Asking coach…" : "Ask DSA coach (uses credits)"}
-          </button>
-        </div>
-
-        <div className="visualize-body">
-          {intro ? <p className="visualize-intro">{intro}</p> : null}
-          {aiError ? (
-            <div className="visualize-error">
-              <p>{aiError}</p>
             </div>
-          ) : null}
-          <CodeVizPlayer
-            key={`${mode}-${kind}-${localSource}-${plan.title}`}
-            plan={plan}
-          />
-        </div>
+          </div>
+        ) : (
+          <>
+            <div className="visualize-toolbar">
+              <button
+                type="button"
+                className="visualize-back-btn"
+                onClick={() => setView("topics")}
+                title="Back to topics"
+              >
+                ← Topics
+              </button>
+              <label className="visualize-select">
+                <span>Category</span>
+                <select
+                  value={category}
+                  onChange={(event) =>
+                    onCategoryChange(event.target.value as VizCategoryId)
+                  }
+                >
+                  {VIZ_CATEGORIES.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="visualize-select">
+                <span>Pattern</span>
+                <select
+                  value={kind}
+                  onChange={(event) =>
+                    applyTemplate(event.target.value as VizKind)
+                  }
+                >
+                  {(patternsInCategory.length > 0
+                    ? patternsInCategory
+                    : templates.map((t) => t.kind)
+                  ).map((item) => (
+                    <option key={item} value={item}>
+                      {VIZ_KIND_LABELS[item]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {cases.length > 0 ? (
+                <label className="visualize-select">
+                  <span>Case</span>
+                  <select
+                    value={caseIndex}
+                    onChange={(event) => applyCase(Number(event.target.value))}
+                  >
+                    {cases.map((item, index) => (
+                      <option key={`${item.name}-${index}`} value={index}>
+                        {item.name}=[{item.values.slice(0, 6).join(",")}
+                        {item.values.length > 6 ? ",…" : ""}]
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              <button
+                type="button"
+                className="visualize-local-btn"
+                onClick={() => applyTemplate(kind)}
+              >
+                Use template
+              </button>
+              <button
+                type="button"
+                className="visualize-file-btn"
+                onClick={() => applyFromFile(kind)}
+                title="Seed steps from arrays/strings in the open editor (no credits)"
+              >
+                From my file
+              </button>
+              <button
+                type="button"
+                className="visualize-ai-btn"
+                disabled={aiLoading}
+                onClick={() => void runAi()}
+                title="Optional — uses your coach AI provider (Menu → AI keys)"
+              >
+                {aiLoading ? "Asking coach…" : "Ask DSA coach (uses AI)"}
+              </button>
+            </div>
+
+            <div className="visualize-body">
+              {intro ? <p className="visualize-intro">{intro}</p> : null}
+              {aiError ? (
+                <div className="visualize-error">
+                  <p>{aiError}</p>
+                </div>
+              ) : null}
+              <CodeVizPlayer
+                key={`${mode}-${kind}-${localSource}-${plan.title}`}
+                plan={plan}
+              />
+            </div>
+          </>
+        )}
       </section>
     </div>
   );

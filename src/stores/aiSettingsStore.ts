@@ -9,6 +9,9 @@ export type AiProviderPrefs = {
   assistantModel: string;
   coachProvider: ChatProviderId;
   coachModel: string;
+  localContextSource: "chat" | "file";
+  localContextMode: "fast" | "balanced" | "full";
+  localStreamMode: "fast" | "smooth" | "silky";
 };
 
 type AiSettingsState = AiProviderPrefs & {
@@ -18,6 +21,9 @@ type AiSettingsState = AiProviderPrefs & {
   setAssistantModel: (model: string) => void;
   setCoachProvider: (provider: ChatProviderId) => void;
   setCoachModel: (model: string) => void;
+  setLocalContextSource: (source: AiProviderPrefs["localContextSource"]) => void;
+  setLocalContextMode: (mode: AiProviderPrefs["localContextMode"]) => void;
+  setLocalStreamMode: (mode: AiProviderPrefs["localStreamMode"]) => void;
 };
 
 export const useAiSettingsStore = create<AiSettingsState>()(
@@ -27,18 +33,75 @@ export const useAiSettingsStore = create<AiSettingsState>()(
       lmstudioBaseUrl: "http://127.0.0.1:1234",
       assistantProvider: "ollama",
       assistantModel: "",
-      coachProvider: "xai",
-      coachModel: "grok-4-1-fast-non-reasoning",
+      coachProvider: "ollama",
+      coachModel: "",
+      localContextSource: "file",
+      localContextMode: "balanced",
+      localStreamMode: "smooth",
       setOllamaBaseUrl: (ollamaBaseUrl) => set({ ollamaBaseUrl }),
       setLmstudioBaseUrl: (lmstudioBaseUrl) => set({ lmstudioBaseUrl }),
       setAssistantProvider: (assistantProvider) => set({ assistantProvider }),
       setAssistantModel: (assistantModel) => set({ assistantModel }),
       setCoachProvider: (coachProvider) => set({ coachProvider }),
       setCoachModel: (coachModel) => set({ coachModel }),
+      setLocalContextSource: (localContextSource) => set({ localContextSource }),
+      setLocalContextMode: (localContextMode) => set({ localContextMode }),
+      setLocalStreamMode: (localStreamMode) => set({ localStreamMode }),
     }),
     {
       name: "scratchcli-ai-settings",
-      version: 1,
+      version: 7,
+      migrate: (persisted, fromVersion) => {
+        const state = persisted as Partial<AiProviderPrefs>;
+        if (fromVersion < 2) {
+          return {
+            ...state,
+            coachProvider: state.coachProvider ?? "ollama",
+            coachModel:
+              state.coachProvider === "xai" ? state.coachModel ?? "" : "",
+            localContextSource: "file",
+            localContextMode: "fast",
+            localStreamMode: "smooth",
+          };
+        }
+        if (fromVersion < 3) {
+          return {
+            ...state,
+            localContextSource: state.localContextSource ?? "file",
+            localContextMode: state.localContextMode ?? "fast",
+            localStreamMode: state.localStreamMode ?? "smooth",
+          };
+        }
+        if (fromVersion < 4) {
+          return {
+            ...state,
+            localContextSource: state.localContextSource ?? "file",
+            localContextMode: state.localContextMode ?? "fast",
+            localStreamMode: state.localStreamMode ?? "smooth",
+          };
+        }
+        if (fromVersion < 5) {
+          return {
+            ...state,
+            localContextSource: state.localContextSource ?? "file",
+            localStreamMode: state.localStreamMode ?? "smooth",
+          };
+        }
+        if (fromVersion < 6) {
+          return {
+            ...state,
+            localContextSource: state.localContextSource ?? "file",
+          };
+        }
+        if (fromVersion < 7) {
+          return {
+            ...state,
+            localContextMode:
+              state.localContextMode === "full" ? "full" : "balanced",
+          };
+        }
+        return state as AiProviderPrefs;
+      },
       // Never persist API keys here — only non-secret preferences.
       partialize: (state) => ({
         ollamaBaseUrl: state.ollamaBaseUrl,
@@ -47,6 +110,9 @@ export const useAiSettingsStore = create<AiSettingsState>()(
         assistantModel: state.assistantModel,
         coachProvider: state.coachProvider,
         coachModel: state.coachModel,
+        localContextSource: state.localContextSource,
+        localContextMode: state.localContextMode,
+        localStreamMode: state.localStreamMode,
       }),
     },
   ),

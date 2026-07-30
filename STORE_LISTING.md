@@ -1,4 +1,4 @@
-# Store & GitHub listing copy (ScratchCLI v0.1.0)
+# Store & GitHub listing copy (ScratchCLI v0.1.1)
 
 Paste these into Partner Center / GitHub Release as needed.
 
@@ -33,13 +33,13 @@ Requires the Microsoft Edge **WebView2** Runtime (included on most Windows 10/11
 
 ---
 
-## What’s new (v0.1.0)
+## What’s new (v0.1.1)
 
-- First public Windows release (x64 NSIS installer)
-- CLI-first home + nano-style Editor mode with resume
-- Local notes library (pin, color, archive, trash)
-- Optional AI keys / Assistant / DSA coach
-- Per-user local data (notes + secrets in AppData)
+- DSA coach always uses the currently open practice file for help/hints
+- `easy` / `medium` / `hard` invent sealed local practice (reliable CASES); `leetcode <slug>` for real LC pulls
+- Done list: click to reopen finished problems; saves path/code on done/submit
+- Study board / lessons expansions and visualize overlays
+- Indent guides, menu polish, and local AI context improvements
 
 ---
 
@@ -51,19 +51,26 @@ CLI-first local coding scratchpad for Windows — notes, editor, shell, and opti
 
 ## GitHub Release title / body (example)
 
-**Title:** ScratchCLI v0.1.0
+**Title:** ScratchCLI v0.1.1
 
 **Body:**
 
 ```markdown
-## ScratchCLI 0.1.0
+## ScratchCLI 0.1.1
 
-First Windows release of ScratchCLI — a CLI-first, local-first coding scratchpad.
+Practice/coach reliability release — invent+seal problems, reopen done list, and always coach the open file.
 
 ### Download
 
-- **Installer (x64):** `ScratchCLI_0.1.0_x64-setup.exe`
-- Silent install: `ScratchCLI_0.1.0_x64-setup.exe /S`
+- **Installer (x64):** `ScratchCLI_0.1.1_x64-setup.exe`
+- Silent install: `ScratchCLI_0.1.1_x64-setup.exe /S`
+
+### Highlights
+
+- Open-file context for Assistant + DSA coach (cloud and local)
+- Invented Easy/Medium/Hard practice with sealed local tests
+- Done list click-to-reopen
+- Study board / visualize / UX polish
 
 ### Notes
 

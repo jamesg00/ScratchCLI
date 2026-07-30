@@ -127,7 +127,7 @@ export const COMMAND_REGISTRY = [
     aliases: ["theme", "font", "opacity"],
     label: "Appearance",
     description: "Change theme, font, colors, and transparency.",
-    usage: "theme light|dark|pro",
+    usage: "theme light|dark|pro|comet",
     category: "Appearance",
     shortcut: "Ctrl+,",
     safety: "safe",
@@ -144,7 +144,7 @@ export const COMMAND_REGISTRY = [
   },
   {
     id: "practice.open",
-    aliases: ["grok", "coach", "dsa"],
+    aliases: ["coach", "dsa", "study", "lessons"],
     label: "Open Practice workspace",
     description: "Open optional DSA coaching and interview tools.",
     usage: "coach",

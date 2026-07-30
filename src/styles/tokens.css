@@ -64,3 +64,17 @@
   --sidebar: #151617;
   --shadow: 0 20px 55px rgb(0 0 0 / 45%);
 }
+
+[data-theme="comet"] {
+  --base-background: #02050a;
+  --surface: #060c16;
+  --surface-raised: #0a1320;
+  --surface-inset: #040a12;
+  --text: #e2f0ff;
+  --muted: #8ca2bb;
+  --line: #1a293b;
+  --accent: #63c2ff;
+  --accent-strong: #41adff;
+  --sidebar: #050b14;
+  --shadow: 0 20px 52px rgb(0 0 0 / 68%);
+}

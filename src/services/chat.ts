@@ -30,6 +30,7 @@ export async function chatCompletion(options: {
   systemPrompt?: string;
   language?: string;
   buffer?: string;
+  contextOverride?: string;
   includeContext?: boolean;
   model?: string;
   apiKey?: string | null;
@@ -48,6 +49,7 @@ export async function chatCompletion(options: {
     systemPrompt: options.systemPrompt ?? null,
     language: options.language ?? null,
     buffer: options.buffer ?? null,
+    contextOverride: options.contextOverride ?? null,
     includeContext: options.includeContext ?? true,
     model: options.model ?? null,
     apiKey: options.apiKey ?? null,

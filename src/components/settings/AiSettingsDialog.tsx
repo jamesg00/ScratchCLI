@@ -4,6 +4,7 @@ import { useAiSettingsStore } from "../../stores/aiSettingsStore";
 import type { ChatProviderId } from "../../services/chat";
 import { listLocalModels } from "../../services/chat";
 import { secretsGet, secretsSet } from "../../services/secrets";
+import { CLOUD_MODELS } from "../../services/aiModels";
 
 type Props = {
   onClose: () => void;
@@ -14,6 +15,7 @@ export function AiSettingsDialog({ onClose }: Props) {
   const ai = useAiSettingsStore();
   const [openaiKey, setOpenaiKey] = useState("");
   const [anthropicKey, setAnthropicKey] = useState("");
+  const [xaiKey, setXaiKey] = useState("");
   const [localStatus, setLocalStatus] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -22,6 +24,7 @@ export function AiSettingsDialog({ onClose }: Props) {
       try {
         setOpenaiKey((await secretsGet("openai")) ?? "");
         setAnthropicKey((await secretsGet("anthropic")) ?? "");
+        setXaiKey((await secretsGet("xai")) ?? appearance.grokApiKey ?? "");
       } catch {
         /* ignore */
       }
@@ -44,6 +47,10 @@ export function AiSettingsDialog({ onClose }: Props) {
       if (!ai.assistantModel && ollama[0]) {
         ai.setAssistantProvider("ollama");
         ai.setAssistantModel(ollama[0].id);
+      }
+      if (!ai.coachModel && ollama[0]) {
+        ai.setCoachProvider("ollama");
+        ai.setCoachModel(ollama[0].id);
       }
     } catch (error) {
       setLocalStatus(
@@ -106,6 +113,41 @@ export function AiSettingsDialog({ onClose }: Props) {
               <p className="ai-providers-status">{localStatus}</p>
             ) : null}
             <label>
+              Local speed mode
+              <select
+                value={ai.localContextMode}
+                onChange={(event) =>
+                  ai.setLocalContextMode(
+                    event.target.value as typeof ai.localContextMode,
+                  )
+                }
+              >
+                <option value="fast">Fast - smallest Python context</option>
+                <option value="balanced">Balanced - smart compact context</option>
+                <option value="full">Full - larger file context</option>
+              </select>
+            </label>
+            <p className="ai-providers-status">
+              Fast strips more file text for quicker local replies. Balanced keeps
+              more helpers/examples. Full sends larger context when quality matters
+              more than speed.
+            </p>
+            <label>
+              Local stream style
+              <select
+                value={ai.localStreamMode}
+                onChange={(event) =>
+                  ai.setLocalStreamMode(
+                    event.target.value as typeof ai.localStreamMode,
+                  )
+                }
+              >
+                <option value="fast">Fast - least animation</option>
+                <option value="smooth">Smooth - balanced reveal</option>
+                <option value="silky">Silky - softer character reveal</option>
+              </select>
+            </label>
+            <label>
               Assistant provider
               <select
                 value={ai.assistantProvider}
@@ -130,13 +172,43 @@ export function AiSettingsDialog({ onClose }: Props) {
               />
             </label>
             <label>
-              DSA coach key (xAI)
+              DSA coach provider
+              <select
+                value={ai.coachProvider}
+                onChange={(event) =>
+                  ai.setCoachProvider(event.target.value as ChatProviderId)
+                }
+              >
+                <option value="ollama">Ollama</option>
+                <option value="lmstudio">LM Studio</option>
+                <option value="xai">xAI</option>
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
+              </select>
+            </label>
+            <label>
+              DSA coach model
+              <input
+                value={ai.coachModel}
+                onChange={(event) => ai.setCoachModel(event.target.value)}
+                placeholder={
+                  CLOUD_MODELS.xai[0] ?? "local model name from Refresh"
+                }
+                spellCheck={false}
+              />
+            </label>
+            <label>
+              xAI key
               <input
                 type="password"
-                value={appearance.grokApiKey ?? ""}
-                onChange={(event) =>
-                  appearance.setGrokApiKey(event.target.value)
-                }
+                value={xaiKey}
+                onChange={(event) => {
+                  setXaiKey(event.target.value);
+                  appearance.setGrokApiKey(event.target.value);
+                  void secretsSet("xai", event.target.value).catch(
+                    () => undefined,
+                  );
+                }}
                 placeholder="xai-…"
                 autoComplete="off"
                 spellCheck={false}

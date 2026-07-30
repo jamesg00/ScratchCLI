@@ -1,22 +1,30 @@
-/** Pick next LeetCode problem (Amazon OA pool or difficulty list) and build a scaffold. */
+/** Pick next LeetCode problem from a chosen company pool or difficulty list and build a scaffold. */
 
-import { AMAZON_OA_SLUGS } from "../../data/amazonOaSlugs";
 import {
   leetcodeGetProblem,
+  leetcodeListCompanyProblems,
   leetcodeListProblems,
   type LeetCodeProblem,
 } from "../../services/leetcode";
 import { useLeetCodeStore } from "../../stores/leetcodeStore";
 import { buildLeetCodeScaffold, type ScaffoldResult } from "./leetcodePractice";
 
-export type LcPracticeMode = "easy" | "medium" | "oa" | "slug";
+export type LcPracticeMode = "easy" | "medium" | "oa" | "slug" | "company";
 
 export type LcPracticeRequest = {
   kind: "leetcode";
   mode: LcPracticeMode;
   /** For mode === "slug" */
   slugOrId?: string;
+  companySlug?: string;
 };
+
+function requireOfficialCases(scaffold: ScaffoldResult): ScaffoldResult {
+  if (scaffold.officialCaseCount >= 4) return scaffold;
+  throw new Error(
+    `LeetCode exposes only ${scaffold.officialCaseCount} verified official example(s) for this problem. ScratchCLI requires 4 official cases and will not invent expected answers. Choose another problem.`,
+  );
+}
 
 function isCompletedOrSkipped(slug: string): boolean {
   const state = useLeetCodeStore.getState();
@@ -24,46 +32,46 @@ function isCompletedOrSkipped(slug: string): boolean {
   return state.completedSlugs.includes(key) || state.skippedSlugs.includes(key);
 }
 
-async function pickOaSlug(): Promise<string> {
-  for (const slug of AMAZON_OA_SLUGS) {
-    if (!isCompletedOrSkipped(slug)) return slug;
-  }
-  for (const difficulty of ["Medium", "Easy"] as const) {
-    for (let skip = 0; skip < 200; skip += 50) {
-      const list = await leetcodeListProblems({ difficulty, limit: 50, skip });
-      const hit = list.find((i) => !isCompletedOrSkipped(i.titleSlug));
-      if (hit) return hit.titleSlug;
-      if (list.length < 50) break;
-    }
+async function pickCompanySlug(options?: {
+  companySlug?: string;
+  difficulty?: "Easy" | "Medium" | "Hard";
+}): Promise<string> {
+  const companySlug =
+    options?.companySlug || useLeetCodeStore.getState().preferredCompanySlug;
+  for (let skip = 0; skip < 300; skip += 50) {
+    const list = await leetcodeListCompanyProblems({
+      companySlug,
+      difficulty: options?.difficulty ?? "",
+      limit: 50,
+      skip,
+    });
+    const hit = list.find((item) => !isCompletedOrSkipped(item.titleSlug));
+    if (hit) return hit.titleSlug;
+    if (list.length < 50) break;
   }
   throw new Error(
-    "No remaining free Easy/Medium problems in the Amazon OA pool. Type done reset or invent for AI problems.",
+    `No remaining free ${
+      options?.difficulty ?? "company"
+    } problems for ${companySlug}. Try company <name>, done reset, or invent.`,
   );
 }
 
 async function pickDifficultySlug(
   difficulty: "Easy" | "Medium",
 ): Promise<string> {
-  const available: string[] = [];
-  for (let skip = 0; skip < 300; skip += 50) {
-    const list = await leetcodeListProblems({ difficulty, limit: 50, skip });
-    for (const item of list) {
-      if (!isCompletedOrSkipped(item.titleSlug)) {
-        available.push(item.titleSlug);
-      }
+  try {
+    return await pickCompanySlug({ difficulty });
+  } catch {
+    for (let skip = 0; skip < 300; skip += 50) {
+      const list = await leetcodeListProblems({ difficulty, limit: 50, skip });
+      const hit = list.find((item) => !isCompletedOrSkipped(item.titleSlug));
+      if (hit) return hit.titleSlug;
+      if (list.length < 50) break;
     }
-    if (list.length < 50) break;
-    if (available.length > 0) break;
+    throw new Error(
+      `No remaining free ${difficulty} problems. Type done on finished ones, company <name>, or invent.`,
+    );
   }
-
-  for (const slug of AMAZON_OA_SLUGS) {
-    if (available.includes(slug)) return slug;
-  }
-  if (available[0]) return available[0];
-
-  throw new Error(
-    `No remaining free ${difficulty} problems. Type done on finished ones, or try oa / invent.`,
-  );
 }
 
 export async function fetchAndBuildLcPractice(
@@ -79,28 +87,27 @@ export async function fetchAndBuildLcPractice(
     trySlugs.push(await pickDifficultySlug("Easy"));
   } else if (req.mode === "medium") {
     trySlugs.push(await pickDifficultySlug("Medium"));
+  } else if (req.mode === "company") {
+    trySlugs.push(await pickCompanySlug({ companySlug: req.companySlug }));
   } else {
-    // Try several OA candidates in case some are premium/removed
-    for (const slug of AMAZON_OA_SLUGS) {
-      if (!isCompletedOrSkipped(slug)) trySlugs.push(slug);
-      if (trySlugs.length >= 12) break;
-    }
-    if (trySlugs.length === 0) {
-      trySlugs.push(await pickOaSlug());
-    }
+    trySlugs.push(await pickCompanySlug());
   }
 
   let lastError: unknown;
   for (const slug of trySlugs) {
     try {
       const problem = await leetcodeGetProblem(slug);
-      const scaffold = buildLeetCodeScaffold(problem);
+      const scaffold = requireOfficialCases(buildLeetCodeScaffold(problem));
       useLeetCodeStore.getState().setLastSlug(problem.titleSlug);
       return { ...scaffold, problem };
     } catch (err) {
       lastError = err;
-      // Skip broken/premium OA entries so the pool keeps moving
-      if (req.mode === "oa" || req.mode === "easy" || req.mode === "medium") {
+      if (
+        req.mode === "oa" ||
+        req.mode === "easy" ||
+        req.mode === "medium" ||
+        req.mode === "company"
+      ) {
         useLeetCodeStore.getState().markSkipped(slug);
         continue;
       }
@@ -108,11 +115,10 @@ export async function fetchAndBuildLcPractice(
     }
   }
 
-  // One more attempt via live list if OA candidates all failed
-  if (req.mode === "oa") {
-    const fallback = await pickOaSlug();
+  if (req.mode === "oa" || req.mode === "company") {
+    const fallback = await pickCompanySlug({ companySlug: req.companySlug });
     const problem = await leetcodeGetProblem(fallback);
-    const scaffold = buildLeetCodeScaffold(problem);
+    const scaffold = requireOfficialCases(buildLeetCodeScaffold(problem));
     useLeetCodeStore.getState().setLastSlug(problem.titleSlug);
     return { ...scaffold, problem };
   }

@@ -11,10 +11,13 @@ export const VIZ_KINDS: VizKind[] = [
   "stack",
   "queue",
   "hash_map",
+  "heap",
   "recursion",
+  "backtracking",
   "dp",
   "graph_bfs",
   "graph_dfs",
+  "trie",
   "sort",
   "other",
 ];
@@ -30,16 +33,19 @@ export const VIZ_KIND_LABELS: Record<VizKind, string> = {
   stack: "Stack",
   queue: "Queue",
   hash_map: "Hash map",
+  heap: "Heap",
   recursion: "Recursion",
+  backtracking: "Backtracking",
   dp: "Dynamic programming",
   graph_bfs: "Graph BFS",
   graph_dfs: "Graph DFS",
+  trie: "Trie",
   sort: "Sorting",
   other: "Algorithm",
 };
 
 const KIND_SCHEMA =
-  "array|string|linked_list|tree|two_pointers|sliding_window|binary_search|stack|queue|hash_map|recursion|dp|graph_bfs|graph_dfs|sort|other";
+  "array|string|linked_list|tree|two_pointers|sliding_window|binary_search|stack|queue|hash_map|heap|recursion|backtracking|dp|graph_bfs|graph_dfs|trie|sort|other";
 
 /** Focused prompt: classify problem + emit one playable ```viz plan. */
 export function buildVizPrompt(options?: { focus?: string }): string {
@@ -51,13 +57,13 @@ export function buildVizPrompt(options?: { focus?: string }): string {
     "Prefer sample inputs from asserts, docstring examples, or literal assignments in the buffer (nums=, target=, k=, quoted strings).",
     "Reply with a short one-line intro naming the pattern, then ONE ```viz fence containing JSON only.",
     "JSON schema:",
-    `{"kind":"${KIND_SCHEMA}","title":"...","code":["line0","line1"],"steps":[{"line":0,"vars":{"i":0},"arrays":{"a":{"values":[1,2],"highlights":{"0":"i"}}},"note":"..."}]}`,
+    `{"kind":"${KIND_SCHEMA}","title":"...","code":["line0","line1"],"steps":[{"line":0,"vars":{"i":0},"arrays":{"a":{"values":[1,2],"highlights":{"0":"i"}}},"structure":{"kind":"tree|graph|linked_list","rootId":"...","nodes":[{"id":"...","label":"...","state":"active"}],"edges":[{"from":"...","to":"...","state":"frontier"}],"queue":["..."],"visitedOrder":["..."]},"note":"..."}]}`,
     "Rules:",
     "- Pick the best `kind` for this problem.",
     "- `code` should be the algorithm lines to highlight (from the buffer if present, else a short correct sketch).",
     "- 0-based `line` indexes into `code`. Keep steps ≤ 40.",
     "- Prefer arrays + pointer highlights + vars so the UI can animate clearly.",
-    "- Linked lists / trees: represent node values as 1D arrays with pointer highlights (no special graph JSON).",
+    "- If the pattern is tree/graph, include `steps[].structure` with `nodes` and `edges` plus per-node `state` for highlighting; keep arrays/vars as traversal state when helpful.",
     "- Do not dump a full unrelated solution essay. No second code fence required.",
     "- If the buffer is empty or not an algorithm, invent a tiny illustrative example for a common DSA pattern.",
   ]

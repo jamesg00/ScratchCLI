@@ -1,5 +1,6 @@
 node_modules/
 dist/
+msix-dist/
 src-tauri/target/
 .idea/
 .vscode/
@@ -8,3 +9,5 @@ src-tauri/target/
 *.db-shm
 *.db-wal
 *.tsbuildinfo
+*.msix
+devcert.pfx

@@ -8,11 +8,14 @@ export type VizCategoryId =
   | "sliding_window"
   | "binary_search"
   | "stack_queue"
+  | "heaps"
   | "linked_list"
   | "trees"
+  | "tries"
   | "graphs"
   | "dp"
   | "recursion"
+  | "backtracking"
   | "sorting";
 
 export type VizCategory = {
@@ -50,11 +53,17 @@ export const VIZ_CATEGORIES: VizCategory[] = [
     kinds: ["stack", "queue"],
   },
   {
+    id: "heaps",
+    label: "Heaps",
+    kinds: ["heap"],
+  },
+  {
     id: "linked_list",
     label: "Linked List",
     kinds: ["linked_list"],
   },
   { id: "trees", label: "Trees", kinds: ["tree"] },
+  { id: "tries", label: "Tries", kinds: ["trie"] },
   {
     id: "graphs",
     label: "Graphs",
@@ -62,6 +71,11 @@ export const VIZ_CATEGORIES: VizCategory[] = [
   },
   { id: "dp", label: "Dynamic Programming", kinds: ["dp"] },
   { id: "recursion", label: "Recursion", kinds: ["recursion"] },
+  {
+    id: "backtracking",
+    label: "Backtracking",
+    kinds: ["backtracking"],
+  },
   { id: "sorting", label: "Sorting", kinds: ["sort"] },
 ];
 

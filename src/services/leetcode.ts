@@ -29,6 +29,13 @@ export type LeetCodeProblem = {
   url: string;
 };
 
+export type LeetCodeCompanyInfo = {
+  name: string;
+  slug: string;
+  questionCount: number;
+  totalFrequency: number;
+};
+
 export async function leetcodeListProblems(options?: {
   difficulty?: "Easy" | "Medium" | "Hard" | "";
   limit?: number;
@@ -46,5 +53,23 @@ export async function leetcodeGetProblem(
 ): Promise<LeetCodeProblem> {
   return invoke<LeetCodeProblem>("leetcode_get_problem", {
     titleSlug,
+  });
+}
+
+export async function leetcodeListCompanies(): Promise<LeetCodeCompanyInfo[]> {
+  return invoke<LeetCodeCompanyInfo[]>("leetcode_list_companies");
+}
+
+export async function leetcodeListCompanyProblems(options: {
+  companySlug: string;
+  difficulty?: "Easy" | "Medium" | "Hard" | "";
+  limit?: number;
+  skip?: number;
+}): Promise<LeetCodeListItem[]> {
+  return invoke<LeetCodeListItem[]>("leetcode_list_company_problems", {
+    companySlug: options.companySlug,
+    difficulty: options.difficulty ?? null,
+    limit: options.limit ?? null,
+    skip: options.skip ?? null,
   });
 }

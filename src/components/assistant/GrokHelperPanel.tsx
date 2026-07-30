@@ -2,41 +2,79 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type FormEvent,
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { useAppearanceStore } from "../../stores/appearanceStore";
+import { useAiSettingsStore, baseUrlForProvider } from "../../stores/aiSettingsStore";
 import { useInterviewStore } from "../../stores/interviewStore";
 import { normalizeError } from "../../types/error";
-import { grokChat, type GrokChatMessage } from "../../services/grok";
+import { coachChat, type CoachChatMessage } from "../../services/coachChat";
+import { listLocalModels, type ChatProviderId } from "../../services/chat";
+import { CLOUD_MODELS, isLocalProvider } from "../../services/aiModels";
+import {
+  buildChatContextPayload,
+  clearChatContextCache,
+  compactChatContextCache,
+  createChatContextCache,
+  type ChatContextPayload,
+} from "../../services/chatContext";
 import { parseGrokSegments } from "./grokSegments";
 import { renderPythonCode } from "./pythonHighlight";
+import { renderImportantProse } from "./renderImportantProse";
+import { renderPythonCheatSheet } from "./pythonCheatSheet";
 import { CodeVizPlaceholder, CodeVizPlayer } from "./CodeVizPlayer";
 import {
+  buildSubmitFailPrompt,
   expandPracticeCommand,
   extractPracticeFile,
+  extractPracticeKey,
+  ensurePracticeTrackingLines,
   PRACTICE_SEAL_RETRY_PROMPT,
 } from "./practiceFile";
 import { sealPracticeFile } from "./sealPracticeTests";
 import { fetchAndBuildLcPractice } from "./leetcodeFlow";
-import { extractLcSlug, useLeetCodeStore } from "../../stores/leetcodeStore";
+import { useLeetCodeStore } from "../../stores/leetcodeStore";
+import { leetcodeListCompanies } from "../../services/leetcode";
 import {
   resolveGuideFromReply,
   stripFullFileFencesFromReply,
+  stripHintComments,
   wrapFreeformCoachPrompt,
 } from "./hintGuide";
+import { executePython } from "../../services/python";
+import {
+  looksLikePracticeFile,
+  parseTestOutput,
+} from "../practice/parseTestOutput";
+import { estimatePythonComplexity } from "../practice/complexityEstimate";
+import {
+  matchingSlashCommands,
+  SlashCommandMenu,
+  type SlashCommand,
+} from "./SlashCommandMenu";
+import { useSessionStore } from "../../stores/sessionStore";
+import { useStudyStore } from "../../stores/studyStore";
 
 type Line = {
   id: number;
-  kind: "system" | "command" | "output" | "error";
+  kind: "system" | "command" | "output" | "error" | "done-list";
   text: string;
   streaming?: boolean;
+  doneSlugs?: string[];
+};
+
+type CompanyOption = {
+  name: string;
+  slug: string;
+  questionCount: number;
 };
 
 type Props = {
   language: string;
   buffer: string;
+  contextKey?: string;
   title?: string;
   width: number;
   onWidthChange: (width: number) => void;
@@ -45,14 +83,77 @@ type Props = {
   onInsert: (text: string) => void;
   /** Replace the open buffer (used for `# HINT:` annotations). */
   onApplyBuffer?: (content: string) => void;
+  onOpenSubmittedFile?: (path: string) => void;
+  /** Open a finished problem from the done list (by slug). */
+  onOpenDoneProblem?: (slug: string) => Promise<void> | void;
   onCreatePracticeFile: (file: {
     content: string;
     fileName: string;
   }) => Promise<string>;
   onOpenVisualize?: () => void;
+  onOpenStudy?: () => void;
 };
 
+function historyForLocalSpeed(
+  provider: ChatProviderId,
+  mode: "fast" | "balanced" | "full",
+  history: CoachChatMessage[],
+): CoachChatMessage[] {
+  if (!isLocalProvider(provider)) return history;
+  if (mode === "fast") return [];
+  if (mode === "balanced") return history.slice(-4);
+  return history.slice(-10);
+}
+
 let lineId = 0;
+const COMPANY_ALIASES: Record<string, string> = {
+  amazon: "amazon",
+  meta: "facebook",
+  facebook: "facebook",
+  fb: "facebook",
+  google: "google",
+  microsoft: "microsoft",
+  apple: "apple",
+  bloomberg: "bloomberg",
+  netflix: "netflix",
+  uber: "uber",
+  doordash: "doordash",
+  linkedin: "linkedin",
+  airbnb: "airbnb",
+  oracle: "oracle",
+  adobe: "adobe",
+  paypal: "paypal",
+  tiktok: "tiktok",
+  walmart: "walmart-labs",
+  walmartlabs: "walmart-labs",
+  walmartlabscom: "walmart-labs",
+  nvidia: "nvidia",
+  salesforce: "salesforce",
+  intuit: "intuit",
+};
+
+const COACH_SLASH_COMMANDS: SlashCommand[] = [
+  { id: "hint", label: "hint", description: "Insert guided hints into the file" },
+  { id: "review", label: "review", description: "Review the current approach" },
+  { id: "submit", label: "submit", description: "Run the local submit gate" },
+  { id: "done list", label: "done list", description: "Show completed problems" },
+  { id: "done reset", label: "done reset", description: "Clear completed problem history" },
+  { id: "progress", label: "progress", description: "Show practice progress" },
+  { id: "easy", label: "easy", description: "Invent an Easy practice problem" },
+  { id: "medium", label: "medium", description: "Invent a Medium practice problem" },
+  { id: "next", label: "next", description: "Invent the next practice problem" },
+  { id: "companies", label: "companies", description: "List company filters" },
+  { id: "study", label: "study", description: "Open the Study board" },
+  { id: "assistant", label: "assistant", description: "Open the coding assistant" },
+  { id: "invent", label: "invent", description: "Create an original practice problem" },
+  { id: "hard", label: "hard", description: "Invent a Hard practice problem" },
+  { id: "solution", label: "solution", description: "Show implementation code only" },
+  { id: "insert", label: "insert", description: "Insert the last coach response" },
+  { id: "viz", label: "viz", description: "Open a visualization" },
+  { id: "settings", label: "settings", description: "Open AI settings" },
+  { id: "clear", label: "clear", description: "Clear coach output" },
+  { id: "exit", label: "exit", description: "Close DSA coach" },
+];
 
 function CopyCodeButton({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
@@ -68,6 +169,30 @@ function CopyCodeButton({ code }: { code: string }) {
       }}
     >
       {copied ? "Copied" : "Copy all"}
+    </button>
+  );
+}
+
+function CopyTextButton({
+  text,
+  label = "Copy",
+}: {
+  text: string;
+  label?: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      className="grok-code-copy"
+      onClick={() => {
+        void navigator.clipboard.writeText(text).then(() => {
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 1200);
+        });
+      }}
+    >
+      {copied ? "Copied" : label}
     </button>
   );
 }
@@ -92,7 +217,7 @@ function GrokOutputBody({
         if (segment.kind === "text") {
           return (
             <pre key={`t-${index}`} className="grok-prose">
-              {segment.text}
+              {renderImportantProse(segment.text)}
               {streaming && index === segments.length - 1 ? (
                 <span className="grok-caret" aria-hidden="true">
                   ▍
@@ -160,6 +285,7 @@ function GrokOutputBody({
 export function GrokHelperPanel({
   language,
   buffer,
+  contextKey,
   title,
   width,
   onWidthChange,
@@ -167,21 +293,35 @@ export function GrokHelperPanel({
   onOpenSettings,
   onInsert,
   onApplyBuffer,
+  onOpenSubmittedFile,
+  onOpenDoneProblem,
   onCreatePracticeFile,
   onOpenVisualize,
+  onOpenStudy,
 }: Props) {
-  const apiKey = useAppearanceStore((state) => state.grokApiKey) ?? "";
-  const [history, setHistory] = useState<GrokChatMessage[]>([]);
+  const ai = useAiSettingsStore();
+  const [provider, setProvider] = useState<ChatProviderId>(ai.coachProvider);
+  const [model, setModel] = useState(ai.coachModel);
+  const [contextMeta, setContextMeta] = useState<ChatContextPayload["meta"]>();
+  const [modelBarOpen, setModelBarOpen] = useState(true);
+  const [models, setModels] = useState<string[]>([]);
+  const [history, setHistory] = useState<CoachChatMessage[]>([]);
   const [lines, setLines] = useState<Line[]>([
     {
       id: lineId++,
       kind: "system",
-      text: "Amazon OA prep — easy / medium / oa pull real LeetCode. done marks complete. invent = AI problem. hint / review → # HINT: (no auto-solve). solution only when you ask.",
+      text: "DSA coach helps you practice interview problems, visualize patterns, and generate guided hints. Use easy/medium, submit (run tests + mark done if pass), done list, hint/review, or solution.",
     },
   ]);
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
+  const [companySlug, setCompanySlug] = useState(
+    useLeetCodeStore.getState().preferredCompanySlug,
+  );
   const [input, setInput] = useState("");
+  const [slashIndex, setSlashIndex] = useState(0);
   const [busy, setBusy] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  const followOutputRef = useRef(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const paneRef = useRef<HTMLElement>(null);
   const lastReply = useRef("");
@@ -190,9 +330,11 @@ export function GrokHelperPanel({
   const streamDisplayText = useRef("");
   const streamAnimRaf = useRef<number | null>(null);
   const streamTargetId = useRef<number | null>(null);
+  const activeRequestIdRef = useRef(0);
   const createFileAfterReply = useRef(false);
   const guideBufferAfterReply = useRef(false);
   const guideSourceBuffer = useRef("");
+  const contextCacheRef = useRef(createChatContextCache());
   const resize = useRef<{
     pointerId: number;
     startX: number;
@@ -202,15 +344,121 @@ export function GrokHelperPanel({
   const onWidthChangeRef = useRef(onWidthChange);
   onWidthChangeRef.current = onWidthChange;
 
+  const setCompany = async (rawCompany: string) => {
+    const wanted = rawCompany.trim().toLowerCase();
+    if (!wanted) {
+      append(
+        "system",
+        `Current company: ${useLeetCodeStore.getState().preferredCompanySlug}. Type companies to browse, or company <name> to switch.`,
+      );
+      return;
+    }
+    const companies = await leetcodeListCompanies();
+    const normalized = COMPANY_ALIASES[wanted] ?? wanted.replace(/\s+/g, "-");
+    const hit =
+      companies.find((item) => item.slug === normalized) ??
+      companies.find((item) => item.name.toLowerCase() === wanted) ??
+      companies.find((item) => item.slug.includes(normalized)) ??
+      companies.find((item) => item.name.toLowerCase().includes(wanted));
+    if (!hit) {
+      throw new Error(
+        `Unknown company: ${rawCompany}. Type companies to see available options.`,
+      );
+    }
+    useLeetCodeStore.getState().setPreferredCompanySlug(hit.slug);
+    setCompanySlug(hit.slug);
+    append(
+      "system",
+      `Company prep set to ${hit.name} (${hit.questionCount} free problems in the patterns list). Type next, easy, or medium.`,
+    );
+  };
+
+  const showCompanies = async () => {
+    const companies = await leetcodeListCompanies();
+    append(
+      "system",
+      [
+        "Top company filters:",
+        ...companies
+          .slice(0, 18)
+          .map(
+            (item) =>
+              `- ${item.name}  (${item.slug})  ${item.questionCount} problems`,
+          ),
+        'Use "company meta" or "company google" to switch.',
+      ].join("\n"),
+    );
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const list = await leetcodeListCompanies();
+        if (cancelled) return;
+        setCompanies(list);
+        const preferred = useLeetCodeStore.getState().preferredCompanySlug;
+        if (preferred) setCompanySlug(preferred);
+      } catch {
+        if (!cancelled) setCompanies([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
   useEffect(() => {
+    setProvider(ai.coachProvider);
+    setModel(ai.coachModel);
+  }, [ai.coachProvider, ai.coachModel]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (provider === "ollama" || provider === "lmstudio") {
+        try {
+          const baseUrl = baseUrlForProvider(provider, {
+            ollamaBaseUrl: ai.ollamaBaseUrl,
+            lmstudioBaseUrl: ai.lmstudioBaseUrl,
+          });
+          const listed = await listLocalModels(provider, baseUrl);
+          if (cancelled) return;
+          const ids = listed.map((item) => item.id);
+          setModels(ids);
+          if (!model && ids[0]) setModel(ids[0]);
+        } catch {
+          if (!cancelled) setModels([]);
+        }
+        return;
+      }
+      const cloud = CLOUD_MODELS[provider] ?? [];
+      if (!cancelled) {
+        setModels(cloud);
+        if (!model && cloud[0]) setModel(cloud[0]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [provider, model, ai.ollamaBaseUrl, ai.lmstudioBaseUrl]);
+
+  useEffect(() => {
     const el = listRef.current;
-    if (!el) return;
+    if (!el || !followOutputRef.current) return;
     el.scrollTop = el.scrollHeight;
   }, [lines, busy]);
+
+  const onOutputScroll = () => {
+    const output = listRef.current;
+    if (!output) return;
+    followOutputRef.current =
+      output.scrollHeight - output.scrollTop - output.clientHeight < 24;
+  };
 
   useEffect(() => {
     const applyLiveWidth = (px: number) => {
@@ -278,6 +526,68 @@ export function GrokHelperPanel({
     ]);
   };
 
+  const usingLocalCompactContext =
+    isLocalProvider(provider) && ai.localContextSource === "file";
+
+  // Reset coach memory when the open file/tab changes so help stays on-problem.
+  useEffect(() => {
+    setHistory([]);
+    setContextMeta(undefined);
+  }, [contextKey]);
+
+  const stopStreaming = () => {
+    if (!busy) return;
+    activeRequestIdRef.current += 1;
+    if (streamAnimRaf.current != null) {
+      cancelAnimationFrame(streamAnimRaf.current);
+      streamAnimRaf.current = null;
+    }
+    const outputId = streamTargetId.current;
+    if (outputId != null) {
+      const partial = streamDisplayText.current;
+      setLines((current) =>
+        current.map((line) =>
+          line.id === outputId
+            ? { ...line, text: partial, streaming: false }
+            : line,
+        ),
+      );
+    }
+    streamLineId.current = null;
+    streamTargetId.current = null;
+    createFileAfterReply.current = false;
+    guideBufferAfterReply.current = false;
+    setBusy(false);
+    append("system", "Stopped response.");
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  const clearLocalSession = () => {
+    clearChatContextCache(contextCacheRef.current, contextKey);
+    setHistory([]);
+    setContextMeta(undefined);
+    append(
+      "system",
+      usingLocalCompactContext
+        ? "Cleared local file context cache and local coach history."
+        : "Cleared local coach history.",
+    );
+  };
+
+  const compactLocalSession = () => {
+    if (usingLocalCompactContext) {
+      compactChatContextCache(contextCacheRef.current, contextKey);
+    }
+    setHistory((current) => current.slice(-2));
+    setContextMeta(undefined);
+    append(
+      "system",
+      usingLocalCompactContext
+        ? "Compacted local file context and trimmed recent coach memory."
+        : "Compacted local coach memory to the most recent turns.",
+    );
+  };
+
   const askGrok = async (
     question: string,
     options?: {
@@ -286,16 +596,16 @@ export function GrokHelperPanel({
       sealRetry?: boolean;
     },
   ) => {
-    if (!apiKey.trim()) {
-      append(
-        "error",
-        'No API key. Open AI keys (Menu → AI keys) or type "settings" / "env".',
-      );
-      return;
-    }
+    const requestId = activeRequestIdRef.current + 1;
+    activeRequestIdRef.current = requestId;
     createFileAfterReply.current = Boolean(options?.createFile);
     guideBufferAfterReply.current = Boolean(options?.guideBuffer);
-    guideSourceBuffer.current = buffer;
+    // Strip previous `# HINT:` lines so the model gets stable line numbers
+    // and the next inject replaces old hints instead of stacking them.
+    const sourceBuffer = options?.guideBuffer
+      ? stripHintComments(buffer)
+      : buffer;
+    guideSourceBuffer.current = sourceBuffer;
     setBusy(true);
     const outputId = lineId++;
     streamLineId.current = outputId;
@@ -323,6 +633,10 @@ export function GrokHelperPanel({
     };
 
     const tickReveal = () => {
+      if (activeRequestIdRef.current !== requestId) {
+        streamAnimRaf.current = null;
+        return;
+      }
       const target = streamTargetText.current;
       const shown = streamDisplayText.current;
       if (shown.length >= target.length) {
@@ -344,6 +658,7 @@ export function GrokHelperPanel({
     };
 
     const queueToken = (token: string) => {
+      if (activeRequestIdRef.current !== requestId) return;
       streamTargetText.current += token;
       if (streamAnimRaf.current == null) {
         streamAnimRaf.current = requestAnimationFrame(tickReveal);
@@ -351,19 +666,52 @@ export function GrokHelperPanel({
     };
 
     try {
-      const result = await grokChat({
-        apiKey,
+      // Always attach the open editor file for help (cloud + local). Skip only when inventing a new practice file.
+      const includeFileContext =
+        Boolean(sourceBuffer.trim()) && !options?.createFile;
+      const context =
+        includeFileContext && usingLocalCompactContext
+          ? buildChatContextPayload({
+              cache: contextCacheRef.current,
+              provider,
+              model,
+              language,
+              buffer: sourceBuffer,
+              isLocal: true,
+              fileKey: contextKey,
+              localMode: ai.localContextMode,
+              question,
+              history,
+            })
+          : {
+              buffer: includeFileContext ? sourceBuffer : "",
+              contextOverride: undefined,
+              meta: undefined,
+            };
+      setContextMeta(context.meta);
+      const result = await coachChat({
+        provider,
+        model,
+        settings: ai,
         question,
         language,
-        buffer,
-        includeContext: !options?.createFile,
-        history: options?.createFile ? [] : history.slice(-10),
+        buffer: context.buffer,
+        contextOverride: context.contextOverride,
+        includeContext: includeFileContext,
+        history: options?.createFile
+          ? []
+          : historyForLocalSpeed(provider, ai.localContextMode, history),
         onToken: queueToken,
       });
+      if (activeRequestIdRef.current !== requestId) return;
       // Finish revealing any remaining buffered text smoothly, then settle.
       streamTargetText.current = result.reply;
       await new Promise<void>((resolve) => {
         const finish = () => {
+          if (activeRequestIdRef.current !== requestId) {
+            resolve();
+            return;
+          }
           if (
             streamDisplayText.current.length >= streamTargetText.current.length
           ) {
@@ -381,6 +729,7 @@ export function GrokHelperPanel({
         };
         finish();
       });
+      if (activeRequestIdRef.current !== requestId) return;
 
       lastReply.current = result.reply;
       let displayReply = result.reply;
@@ -396,6 +745,8 @@ export function GrokHelperPanel({
         { role: "user", content: question },
         { role: "assistant", content: result.reply },
       ]);
+      ai.setCoachProvider(provider);
+      ai.setCoachModel(result.model);
       setLines((current) =>
         current.map((line) =>
           line.id === outputId
@@ -438,7 +789,7 @@ export function GrokHelperPanel({
             ) {
               append(
                 "system",
-                `Seal failed (${sealed.error}). Asking Grok to resend with CASES + working solution…`,
+                `Seal failed (${sealed.error}). Asking coach to resend with CASES + working solution…`,
               );
               await askGrok(PRACTICE_SEAL_RETRY_PROMPT, {
                 createFile: true,
@@ -455,6 +806,11 @@ export function GrokHelperPanel({
             }
             toWrite = sealed.file;
           }
+          toWrite = ensurePracticeTrackingLines(toWrite);
+          const practiceKey = extractPracticeKey(toWrite.content);
+          if (practiceKey) {
+            useLeetCodeStore.getState().setLastSlug(practiceKey);
+          }
           try {
             const path = await onCreatePracticeFile(toWrite);
             append(
@@ -467,11 +823,12 @@ export function GrokHelperPanel({
         } else if (createFileAfterReply.current) {
           append(
             "error",
-            "Grok replied but no runnable practice .py was found. Try easy / medium / hard again.",
+            "Coach replied but no runnable practice .py was found. Try easy / medium / hard again.",
           );
         }
       }
     } catch (err) {
+      if (activeRequestIdRef.current !== requestId) return;
       if (streamAnimRaf.current != null) {
         cancelAnimationFrame(streamAnimRaf.current);
         streamAnimRaf.current = null;
@@ -499,22 +856,26 @@ export function GrokHelperPanel({
         }),
       );
     } finally {
-      createFileAfterReply.current = false;
-      guideBufferAfterReply.current = false;
-      streamLineId.current = null;
-      streamTargetId.current = null;
-      setBusy(false);
-      requestAnimationFrame(() => inputRef.current?.focus());
+      if (activeRequestIdRef.current === requestId) {
+        createFileAfterReply.current = false;
+        guideBufferAfterReply.current = false;
+        streamLineId.current = null;
+        streamTargetId.current = null;
+        setBusy(false);
+        requestAnimationFrame(() => inputRef.current?.focus());
+      }
     }
   };
 
   const runLocal = async (raw: string) => {
     const value = raw.trim();
     if (!value || busy) return;
-    append("command", `grok> ${value}`);
+    append("command", `coach> ${value}`);
     setInput("");
 
     const lower = value.toLowerCase();
+    const word = lower.split(/\s+/)[0] ?? "";
+    const rest = value.slice(word.length).trim();
     if (lower === "exit" || lower === "close" || lower === "q") {
       onClose();
       return;
@@ -523,24 +884,82 @@ export function GrokHelperPanel({
       setLines([]);
       return;
     }
-    if (lower === "help" || lower === "?") {
+    if (lower === "help" || lower === "?" || lower === "/" || lower === "/help") {
       append(
         "system",
         [
-          "LeetCode (Amazon OA): easy | medium | oa | amazon | next | practice | leetcode <slug>",
-          "Progress: done  → mark current # LC: slug complete | done reset",
-          "AI invent: invent | original | hard",
-          "Coach: hint | advice | review  → chat advice + # HINT: in your open file (no full-file dump)",
-          "        solution | answer     → full answer (only when you ask)",
-          "        viz                   → local visualize",
-          "Other: clear | insert | settings | exit",
-          "Local tests = official examples only — submit on LeetCode for the full judge.",
+          "DSA coach commands",
+          "  / or help          Show this command list",
+          "  next               Invent a Medium practice problem + sealed tests",
+          "  easy | medium | hard  Invent practice by difficulty (local CASES)",
+          "  invent | original  Same — original AI problem with sealed tests",
+          "  leetcode <slug>    Pull a specific real LeetCode problem",
+          "  company <name>     Switch company filter (or use dropdown)",
+          "  companies          List available companies",
+          "  study | lessons    Open guided lessons / Study board",
+          "  assistant          Open the general coding assistant",
+          "  theme comet        Set the comet theme from main CLI",
+          "  done               Mark current practice complete (saves for done list)",
+          "  submit             3+ cases + consistency gate; reports complexity",
+          "  done list          Show finished problems (click to reopen)",
+          "  progress           Same as done list",
+          "  done reset         Reset completed/skipped progress",
+          "  hint | advice      Give guidance without full solve",
+          "  cheat [topic]      Show Python DSA syntax/reference help",
+          "  review             Review your current approach/file",
+          "  solution | answer  Give the full solution when explicitly asked",
+          "  viz                Open local Visualize mode",
+          "  insert             Insert the last coach reply into editor",
+          "  settings           Open AI keys/settings",
+          "  clear              Clear coach output history",
+          "  exit               Close DSA coach",
+          "Local submit needs 3+ explicit cases; add edge cases to the practice file first.",
         ].join("\n"),
       );
       return;
     }
+    if (lower === "companies" || lower === "company list") {
+      try {
+        await showCompanies();
+      } catch (err) {
+        append("error", normalizeError(err).message);
+      }
+      return;
+    }
+    if (word === "company") {
+      try {
+        await setCompany(rest);
+      } catch (err) {
+        append("error", normalizeError(err).message);
+      }
+      return;
+    }
+    if (word in COMPANY_ALIASES) {
+      try {
+        await setCompany(word);
+      } catch (err) {
+        append("error", normalizeError(err).message);
+      }
+      return;
+    }
     if (lower === "settings" || lower === "key") {
       onOpenSettings();
+      return;
+    }
+    if (word === "cheat" || word === "python" || word === "syntax") {
+      append("system", renderPythonCheatSheet(rest));
+      return;
+    }
+    if (lower === "study" || lower === "lesson" || lower === "lessons") {
+      onOpenStudy?.();
+      append("system", "Opened Study board.");
+      return;
+    }
+    if (lower === "assistant" || lower === "ai") {
+      append(
+        "system",
+        "Use Ctrl+Shift+A (or `assistant` in main CLI) to open Assistant.",
+      );
       return;
     }
     if (lower === "insert") {
@@ -568,24 +987,195 @@ export function GrokHelperPanel({
     if (practice) {
       if (practice.kind === "done") {
         const slug =
-          extractLcSlug(buffer) ?? useLeetCodeStore.getState().lastSlug;
+          extractPracticeKey(buffer) ?? useLeetCodeStore.getState().lastSlug;
         if (!slug) {
           append(
             "error",
-            "No # LC: slug in the open file. Open a LeetCode practice file first.",
+            "No # LC: / # FILE: id in the open file. Open a practice file first.",
           );
           return;
         }
+        useLeetCodeStore.getState().saveSubmittedFile(
+          slug,
+          buffer,
+          useSessionStore.getState().getActiveTab()?.path,
+        );
         useLeetCodeStore.getState().markDone(slug);
         append(
           "system",
-          `Marked done: ${slug} (${useLeetCodeStore.getState().completedSlugs.length} completed). Type oa or easy for the next one.`,
+          `Marked done: ${slug} (${useLeetCodeStore.getState().completedSlugs.length} completed). Type done list to review, or next / easy / medium for another invented practice problem.`,
         );
+        return;
+      }
+      if (practice.kind === "done-list") {
+        const { completedSlugs, skippedSlugs } = useLeetCodeStore.getState();
+        if (completedSlugs.length === 0 && skippedSlugs.length === 0) {
+          append(
+            "system",
+            "No finished problems yet. Solve a practice file, then type done or submit.",
+          );
+          return;
+        }
+        const formatSlug = (slug: string) => {
+          const title = slug
+            .split("-")
+            .filter(Boolean)
+            .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(" ");
+          return title;
+        };
+        const lines = [
+          `Finished problems (${completedSlugs.length}):`,
+          ...(completedSlugs.length
+            ? completedSlugs.map(formatSlug)
+            : ["  (none)"]),
+        ];
+        if (skippedSlugs.length) {
+          lines.push(
+            "",
+            `Skipped (${skippedSlugs.length}):`,
+            ...skippedSlugs.map(formatSlug),
+          );
+        }
+        lines.push("", "Tip: done reset clears this list.");
+        setLines((current) => [
+          ...current.slice(-120),
+          {
+            id: lineId++,
+            kind: "done-list",
+            text: lines.join("\n"),
+            doneSlugs: completedSlugs,
+          },
+        ]);
         return;
       }
       if (practice.kind === "done-reset") {
         useLeetCodeStore.getState().resetProgress();
         append("system", "Cleared LeetCode progress (completed/skipped).");
+        return;
+      }
+      if (practice.kind === "submit") {
+        if (!buffer.trim()) {
+          append("error", "Open a practice file first, then type submit.");
+          return;
+        }
+        if (!looksLikePracticeFile(buffer)) {
+          append(
+            "system",
+            "This buffer doesn't look like a runnable practice harness. Submit still runs it — prefer files with PASS/FAIL tests.",
+          );
+        }
+        append(
+          "system",
+          "Running the local submit gate (minimum 4 cases, then consistency reruns)…",
+        );
+        try {
+          const cwd = useSessionStore.getState().cwd || null;
+          const result = await executePython(buffer, "run", cwd);
+          const combined = `${result.stdout ?? ""}\n${result.stderr ?? ""}`.trim();
+          if (result.stdout?.trim()) append("output", result.stdout.trimEnd());
+          if (result.stderr?.trim()) append("error", result.stderr.trimEnd());
+
+          const summary = parseTestOutput(combined);
+          const failedLabels =
+            summary?.cases.filter((item) => !item.passed).map((item) => item.label) ??
+            [];
+          const hasFailLine = /\bFAIL\b/i.test(combined);
+          const hasEnoughCases = Boolean(summary && summary.total >= 4);
+          const allPassed =
+            result.exitCode === 0 &&
+            !hasFailLine &&
+            hasEnoughCases &&
+            summary!.passed === summary!.total;
+
+          if (allPassed) {
+            const reruns = await Promise.all([
+              executePython(buffer, "run", cwd),
+              executePython(buffer, "run", cwd),
+            ]);
+            const rerunsPassed = reruns.every((run) => {
+              const output = `${run.stdout ?? ""}\n${run.stderr ?? ""}`;
+              const rerunSummary = parseTestOutput(output);
+              return (
+                run.exitCode === 0 &&
+                !/\bFAIL\b/i.test(output) &&
+                rerunSummary?.total === summary!.total &&
+                rerunSummary.passed === rerunSummary.total
+              );
+            });
+            if (!rerunsPassed) {
+              append(
+                "system",
+                "Submit rejected — the test suite was not stable across verification reruns. Not marked done.",
+              );
+              return;
+            }
+
+            const complexity = estimatePythonComplexity(buffer);
+            const slug =
+              extractPracticeKey(buffer) ?? useLeetCodeStore.getState().lastSlug;
+            useStudyStore.getState().recordPractice({
+              title: title?.trim() || slug || "practice submit",
+              path: undefined,
+              passed: true,
+            });
+            if (slug) {
+              useLeetCodeStore.getState().saveSubmittedFile(
+                slug,
+                buffer,
+                useSessionStore.getState().getActiveTab()?.path,
+              );
+              useLeetCodeStore.getState().markDone(slug);
+              append(
+                "system",
+                `Local submit accepted — ${summary!.passed}/${summary!.total} cases passed across 3 runs. Marked done: ${slug} (${useLeetCodeStore.getState().completedSlugs.length} completed).\nComplexity estimate: Time ${complexity.time}, Space ${complexity.space}. ${complexity.note} Type done list to review.`,
+              );
+            } else {
+              append(
+                "system",
+                `Local submit accepted — ${summary!.passed}/${summary!.total} cases passed across 3 runs. No # LC: / # FILE: id to mark done.\nComplexity estimate: Time ${complexity.time}, Space ${complexity.space}. ${complexity.note}`,
+              );
+            }
+            return;
+          }
+
+          const summaryText = !hasEnoughCases
+            ? `${summary?.total ?? 0} test case(s); add at least 4 explicit cases before submitting`
+            : summary
+              ? `${summary.passed}/${summary.total} passed`
+            : result.exitCode === 0
+              ? "no PASS/FAIL summary parsed"
+              : `process exited with code ${result.exitCode ?? "unknown"}`;
+          if (failedLabels.length > 0) {
+            append(
+              "error",
+              ["Failed test cases:", ...failedLabels.map((label) => `- ${label}`)].join("\n"),
+            );
+          }
+          append(
+            "system",
+            `Submit rejected — ${summaryText}. Not marked done. Asking coach what to fix…`,
+          );
+          useStudyStore.getState().recordPractice({
+            title: title?.trim() || extractPracticeKey(buffer) || "practice submit",
+            passed: false,
+          });
+          await askGrok(
+            buildSubmitFailPrompt({
+              summaryText,
+              failedLabels,
+              output: combined,
+              exitCode: result.exitCode ?? null,
+            }),
+            { guideBuffer: true },
+          );
+        } catch (err) {
+          append("error", normalizeError(err).message);
+          append(
+            "system",
+            "Submit rejected — could not run tests. Not marked done.",
+          );
+        }
         return;
       }
       if (practice.kind === "leetcode") {
@@ -642,6 +1232,28 @@ export function GrokHelperPanel({
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    const slashMatches = matchingSlashCommands(COACH_SLASH_COMMANDS, input.slice(1));
+    if (input.startsWith("/") && slashMatches.length > 0) {
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const step = event.key === "ArrowDown" ? 1 : -1;
+        setSlashIndex((current) =>
+          (current + step + slashMatches.length) % slashMatches.length,
+        );
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void runLocal(slashMatches[Math.min(slashIndex, slashMatches.length - 1)]!.id);
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setInput("");
+        setSlashIndex(0);
+        return;
+      }
+    }
     if (event.key === "Escape") {
       event.preventDefault();
       onClose();
@@ -677,12 +1289,196 @@ export function GrokHelperPanel({
         onPointerDown={onResizeDown}
       />
       <header className="grok-cli-header">
-        <span className="grok-cli-title">dsa coach · {fileLabel}</span>
-        <button type="button" onClick={onClose} title="Close DSA coach (Esc)">
-          x
-        </button>
+        <div className="grok-cli-header-left">
+          <span className="grok-cli-title">dsa coach · {fileLabel}</span>
+          <button
+            type="button"
+            className="assistant-model-toggle"
+            aria-expanded={modelBarOpen}
+            aria-controls="coach-model-bar"
+            title={modelBarOpen ? "Hide model settings" : "Show model settings"}
+            onClick={() => setModelBarOpen((open) => !open)}
+          >
+            ▾
+          </button>
+        </div>
+        <div className="grok-cli-header-actions">
+          {busy ? (
+            <button type="button" onClick={stopStreaming} title="Stop response">
+              stop
+            </button>
+          ) : null}
+          <button type="button" onClick={onOpenSettings} title="AI keys">
+            …
+          </button>
+          <button type="button" onClick={onClose} title="Close DSA coach (Esc)">
+            x
+          </button>
+        </div>
       </header>
-      <div className="grok-cli-output" ref={listRef} aria-live="polite">
+      <div
+        className="assistant-model-bar-shell"
+        data-open={modelBarOpen ? "1" : "0"}
+      >
+        <div className="assistant-model-bar-clip">
+          <div
+            id="coach-model-bar"
+            className="assistant-model-bar"
+            aria-hidden={!modelBarOpen}
+          >
+        <div className="assistant-model-bar-row">
+          <label className="assistant-model-primary">
+            <span className="sr-only">Provider</span>
+            <select
+              value={provider}
+              onChange={(event) => {
+                const next = event.target.value as ChatProviderId;
+                setProvider(next);
+                setModel("");
+                ai.setCoachProvider(next);
+                ai.setCoachModel("");
+              }}
+              disabled={busy}
+            >
+              <option value="ollama">Ollama (local)</option>
+              <option value="lmstudio">LM Studio (local)</option>
+              <option value="xai">xAI</option>
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+            </select>
+          </label>
+          <label className="assistant-model-primary">
+            <span className="sr-only">Model</span>
+            <select
+              value={model}
+              onChange={(event) => {
+                setModel(event.target.value);
+                ai.setCoachModel(event.target.value);
+              }}
+              disabled={busy || models.length === 0}
+            >
+              {models.length === 0 ? (
+                <option value="">No models found</option>
+              ) : (
+                models.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))
+              )}
+            </select>
+          </label>
+        </div>
+        <div className="assistant-model-bar-row">
+          <label className="assistant-model-compact">
+            <span className="sr-only">Context source</span>
+            <select
+              value={ai.localContextSource}
+              onChange={(event) =>
+                ai.setLocalContextSource(
+                  event.target.value as typeof ai.localContextSource,
+                )
+              }
+              disabled={busy || !isLocalProvider(provider)}
+              title="Local compact mode (open file is always attached for help)"
+            >
+              <option value="file">File</option>
+              <option value="chat">Chat</option>
+            </select>
+          </label>
+          <label className="assistant-model-compact">
+            <span className="sr-only">Speed</span>
+            <select
+              value={ai.localContextMode}
+              onChange={(event) =>
+                ai.setLocalContextMode(
+                  event.target.value as typeof ai.localContextMode,
+                )
+              }
+              disabled={busy}
+              title="Local model speed mode"
+            >
+              <option value="fast">Fast</option>
+              <option value="balanced">Balanced</option>
+              <option value="full">Full</option>
+            </select>
+          </label>
+          <label className="assistant-model-compact">
+            <span className="sr-only">Company</span>
+            <select
+              value={companySlug}
+              onChange={(event) => {
+                const next = event.target.value;
+                setCompanySlug(next);
+                useLeetCodeStore.getState().setPreferredCompanySlug(next);
+                const hit = companies.find((item) => item.slug === next);
+                if (hit) {
+                  append(
+                    "system",
+                    `Company prep set to ${hit.name} (${hit.questionCount} free problems in the patterns list).`,
+                  );
+                }
+              }}
+              disabled={busy || companies.length === 0}
+            >
+              {companies.length === 0 ? (
+                <option value={companySlug || ""}>No companies found</option>
+              ) : (
+                companies.map((item) => (
+                  <option key={item.slug} value={item.slug}>
+                    {item.name}
+                  </option>
+                ))
+              )}
+            </select>
+          </label>
+          {isLocalProvider(provider) ? (
+            <div className="assistant-model-actions">
+              {usingLocalCompactContext && contextMeta ? (
+                <div
+                  className="context-meter"
+                  title={`Local context ${contextMeta.usedChars}/${contextMeta.budgetChars}${contextMeta.compacted ? " (compacted)" : ""}`}
+                >
+                  <span
+                    className="context-meter-ring"
+                    style={
+                      {
+                        "--context-ratio": String(contextMeta.ratio),
+                      } as CSSProperties
+                    }
+                  />
+                </div>
+              ) : null}
+              <button
+                type="button"
+                className="context-action-btn"
+                onClick={clearLocalSession}
+                disabled={busy}
+                title="Clear local session context"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                className="context-action-btn"
+                onClick={compactLocalSession}
+                disabled={busy}
+                title="Compact local session context"
+              >
+                Compact
+              </button>
+            </div>
+          ) : null}
+        </div>
+          </div>
+        </div>
+      </div>
+      <div
+        className="grok-cli-output"
+        ref={listRef}
+        onScroll={onOutputScroll}
+        aria-live="polite"
+      >
         {lines.map((line) =>
           line.kind === "output" ? (
             <GrokOutputBody
@@ -691,6 +1487,59 @@ export function GrokHelperPanel({
               language={language}
               streaming={line.streaming}
             />
+          ) : line.kind === "done-list" ? (
+            <div key={line.id} className="done-list-output">
+              <strong>Finished problems</strong>
+              <span className="done-list-hint">Click a problem to reopen it</span>
+              {(line.doneSlugs ?? []).map((slug) => {
+                  const item = slug
+                    .split("-")
+                    .filter(Boolean)
+                    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+                    .join(" ");
+                  return (
+                    <button
+                      key={`${line.id}-${slug}`}
+                      type="button"
+                      className="done-list-item"
+                      title="Open this practice file"
+                      onClick={() => {
+                        void (async () => {
+                          try {
+                            if (onOpenDoneProblem) {
+                              await onOpenDoneProblem(slug);
+                              append("system", `Opened ${item}.`);
+                              return;
+                            }
+                            const store = useLeetCodeStore.getState();
+                            const path = store.submittedPaths[slug];
+                            const code = store.submittedFiles[slug];
+                            if (path && onOpenSubmittedFile) {
+                              onOpenSubmittedFile(path);
+                              append("system", `Opened ${item}.`);
+                              return;
+                            }
+                            if (code && onApplyBuffer) {
+                              onApplyBuffer(code);
+                              append("system", `Restored ${item} into the editor.`);
+                              return;
+                            }
+                            append(
+                              "error",
+                              `Couldn't open ${item}. Open the file manually, then type done again.`,
+                            );
+                          } catch (err) {
+                            append("error", normalizeError(err).message);
+                          }
+                        })();
+                      }}
+                    >
+                      <span aria-hidden>✅</span>
+                      <span className="done-list-item-label">{item}</span>
+                    </button>
+                  );
+                })}
+            </div>
           ) : (
             <pre key={line.id} data-kind={line.kind}>
               {line.text}
@@ -699,20 +1548,33 @@ export function GrokHelperPanel({
         )}
       </div>
       <form className="grok-cli-input" onSubmit={onSubmit}>
+        {input.startsWith("/") && (
+          <SlashCommandMenu
+            commands={COACH_SLASH_COMMANDS}
+            query={input.slice(1)}
+            activeIndex={slashIndex}
+            onChoose={(command) => void runLocal(command.id)}
+          />
+        )}
         <span className="grok-cli-prompt" aria-hidden="true">
           coach&gt;
         </span>
         <input
           ref={inputRef}
           value={input}
-          onChange={(event) => setInput(event.target.value)}
+          onChange={(event) => {
+            setInput(event.target.value);
+            setSlashIndex(0);
+          }}
           onKeyDown={onKeyDown}
           disabled={busy}
           spellCheck={false}
           autoComplete="off"
           aria-label="Ask DSA coach"
           placeholder={
-            busy ? "Streaming…" : "hint · review · easy · medium · hard"
+            busy
+              ? "Streaming…"
+              : "/ for Commands"
           }
         />
       </form>

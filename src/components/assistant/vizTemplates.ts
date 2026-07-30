@@ -51,6 +51,19 @@ export function detectVizKind(buffer: string): VizKind {
   ) {
     return "hash_map";
   }
+  if (/heapq|heappush|heappop|priority.?queue|\bheap\b|kth.?largest/.test(text)) {
+    return "heap";
+  }
+  if (/\btrie\b|startswith|prefix.?tree|autocomplete/.test(text)) {
+    return "trie";
+  }
+  if (
+    /backtrack|permute|permutation|combination|subsets?\(|n.?queens|path\.pop\(/.test(
+      text,
+    )
+  ) {
+    return "backtracking";
+  }
   if (/bfs|queue.*neighbor|level.?order/.test(text)) {
     return "graph_bfs";
   }
@@ -88,6 +101,7 @@ function step(
   opts: {
     vars?: VizStep["vars"];
     arrays?: VizStep["arrays"];
+    structure?: VizStep["structure"];
     note?: string;
   } = {},
 ): VizStep {
@@ -530,6 +544,24 @@ def bfs(graph, start):
               q: { values: ["A"], highlights: { "0": "front" } },
               seen: { values: ["A"], highlights: {} },
             },
+            structure: {
+              kind: "graph",
+              nodes: [
+                { id: "A", label: "A", state: "active" },
+                { id: "B", label: "B", state: "dimmed" },
+                { id: "C", label: "C", state: "dimmed" },
+                { id: "D", label: "D", state: "dimmed" },
+              ],
+              edges: [
+                { from: "A", to: "B" },
+                { from: "A", to: "C" },
+                { from: "B", to: "D" },
+                { from: "C", to: "D" },
+              ],
+              rootId: "A",
+              queue: ["A"],
+              visitedOrder: ["A"],
+            },
             note: "Start at A.",
           }),
           step(5, {
@@ -537,6 +569,24 @@ def bfs(graph, start):
             arrays: {
               q: { values: ["B", "C"], highlights: { "0": "front" } },
               seen: { values: ["A", "B", "C"], highlights: {} },
+            },
+            structure: {
+              kind: "graph",
+              nodes: [
+                { id: "A", label: "A", state: "visited" },
+                { id: "B", label: "B", state: "frontier" },
+                { id: "C", label: "C", state: "frontier" },
+                { id: "D", label: "D", state: "dimmed" },
+              ],
+              edges: [
+                { from: "A", to: "B" },
+                { from: "A", to: "C" },
+                { from: "B", to: "D" },
+                { from: "C", to: "D" },
+              ],
+              rootId: "A",
+              queue: ["B", "C"],
+              visitedOrder: ["A", "B", "C"],
             },
             note: "Visit A; enqueue neighbors B, C.",
           }),
@@ -546,6 +596,24 @@ def bfs(graph, start):
               q: { values: ["C", "D"], highlights: { "0": "front" } },
               seen: { values: ["A", "B", "C", "D"], highlights: {} },
             },
+            structure: {
+              kind: "graph",
+              nodes: [
+                { id: "A", label: "A", state: "visited" },
+                { id: "B", label: "B", state: "active" },
+                { id: "C", label: "C", state: "frontier" },
+                { id: "D", label: "D", state: "frontier" },
+              ],
+              edges: [
+                { from: "A", to: "B" },
+                { from: "A", to: "C" },
+                { from: "B", to: "D" },
+                { from: "C", to: "D" },
+              ],
+              rootId: "A",
+              queue: ["C", "D"],
+              visitedOrder: ["A", "B", "C", "D"],
+            },
             note: "Visit B; enqueue D.",
           }),
           step(5, {
@@ -553,6 +621,24 @@ def bfs(graph, start):
             arrays: {
               q: { values: ["D"], highlights: { "0": "front" } },
               seen: { values: ["A", "B", "C", "D"], highlights: {} },
+            },
+            structure: {
+              kind: "graph",
+              nodes: [
+                { id: "A", label: "A", state: "visited" },
+                { id: "B", label: "B", state: "visited" },
+                { id: "C", label: "C", state: "active" },
+                { id: "D", label: "D", state: "frontier" },
+              ],
+              edges: [
+                { from: "A", to: "B" },
+                { from: "A", to: "C" },
+                { from: "B", to: "D" },
+                { from: "C", to: "D" },
+              ],
+              rootId: "A",
+              queue: ["D"],
+              visitedOrder: ["A", "B", "C", "D"],
             },
             note: "Level-order exploration.",
           }),
@@ -577,12 +663,44 @@ def dfs(graph, node, seen=None):
           step(3, {
             vars: { node: "A" },
             arrays: { seen: { values: ["A"], highlights: { "0": "cur" } } },
+            structure: {
+              kind: "graph",
+              nodes: [
+                { id: "A", label: "A", state: "active" },
+                { id: "B", label: "B", state: "dimmed" },
+                { id: "C", label: "C", state: "dimmed" },
+                { id: "D", label: "D", state: "dimmed" },
+              ],
+              edges: [
+                { from: "A", to: "B" },
+                { from: "A", to: "C" },
+                { from: "B", to: "D" },
+              ],
+              rootId: "A",
+              visitedOrder: ["A"],
+            },
             note: "Enter A.",
           }),
           step(3, {
             vars: { node: "B" },
             arrays: {
               seen: { values: ["A", "B"], highlights: { "1": "cur" } },
+            },
+            structure: {
+              kind: "graph",
+              nodes: [
+                { id: "A", label: "A", state: "visited" },
+                { id: "B", label: "B", state: "active" },
+                { id: "C", label: "C", state: "dimmed" },
+                { id: "D", label: "D", state: "dimmed" },
+              ],
+              edges: [
+                { from: "A", to: "B" },
+                { from: "A", to: "C" },
+                { from: "B", to: "D" },
+              ],
+              rootId: "A",
+              visitedOrder: ["A", "B"],
             },
             note: "Go deep into B before siblings.",
           }),
@@ -594,6 +712,22 @@ def dfs(graph, node, seen=None):
                 highlights: { "2": "cur" },
               },
             },
+            structure: {
+              kind: "graph",
+              nodes: [
+                { id: "A", label: "A", state: "visited" },
+                { id: "B", label: "B", state: "visited" },
+                { id: "C", label: "C", state: "dimmed" },
+                { id: "D", label: "D", state: "active" },
+              ],
+              edges: [
+                { from: "A", to: "B" },
+                { from: "A", to: "C" },
+                { from: "B", to: "D" },
+              ],
+              rootId: "A",
+              visitedOrder: ["A", "B", "D"],
+            },
             note: "Reach leaf D, then backtrack.",
           }),
           step(3, {
@@ -603,6 +737,22 @@ def dfs(graph, node, seen=None):
                 values: ["A", "B", "D", "C"],
                 highlights: { "3": "cur" },
               },
+            },
+            structure: {
+              kind: "graph",
+              nodes: [
+                { id: "A", label: "A", state: "visited" },
+                { id: "B", label: "B", state: "visited" },
+                { id: "C", label: "C", state: "active" },
+                { id: "D", label: "D", state: "visited" },
+              ],
+              edges: [
+                { from: "A", to: "B" },
+                { from: "A", to: "C" },
+                { from: "B", to: "D" },
+              ],
+              rootId: "A",
+              visitedOrder: ["A", "B", "D", "C"],
             },
             note: "After backtrack, visit C.",
           }),
@@ -863,6 +1013,25 @@ def level_order(root):
                 highlights: { "0": "root" },
               },
             },
+            structure: {
+              kind: "tree",
+              rootId: "1",
+              nodes: [
+                { id: "1", label: "1", state: "frontier" },
+                { id: "2", label: "2", state: "dimmed" },
+                { id: "3", label: "3", state: "dimmed" },
+                { id: "4", label: "4", state: "dimmed" },
+                { id: "5", label: "5", state: "dimmed" },
+              ],
+              edges: [
+                { from: "1", to: "2" },
+                { from: "1", to: "3" },
+                { from: "2", to: "4" },
+                { from: "2", to: "5" },
+              ],
+              queue: ["1"],
+              visitedOrder: [],
+            },
             note: "Heap-style array: parent i → kids 2i+1, 2i+2.",
           }),
           step(6, {
@@ -874,6 +1043,25 @@ def level_order(root):
                 values: [1, 2, 3, 4, 5],
                 highlights: { "1": "L", "2": "R" },
               },
+            },
+            structure: {
+              kind: "tree",
+              rootId: "1",
+              nodes: [
+                { id: "1", label: "1", state: "visited" },
+                { id: "2", label: "2", state: "frontier" },
+                { id: "3", label: "3", state: "frontier" },
+                { id: "4", label: "4", state: "dimmed" },
+                { id: "5", label: "5", state: "dimmed" },
+              ],
+              edges: [
+                { from: "1", to: "2" },
+                { from: "1", to: "3" },
+                { from: "2", to: "4" },
+                { from: "2", to: "5" },
+              ],
+              queue: ["2", "3"],
+              visitedOrder: ["1"],
             },
             note: "Visit 1; enqueue left=2, right=3.",
           }),
@@ -887,6 +1075,25 @@ def level_order(root):
                 highlights: { "3": "L", "4": "R" },
               },
             },
+            structure: {
+              kind: "tree",
+              rootId: "1",
+              nodes: [
+                { id: "1", label: "1", state: "visited" },
+                { id: "2", label: "2", state: "active" },
+                { id: "3", label: "3", state: "frontier" },
+                { id: "4", label: "4", state: "frontier" },
+                { id: "5", label: "5", state: "frontier" },
+              ],
+              edges: [
+                { from: "1", to: "2" },
+                { from: "1", to: "3" },
+                { from: "2", to: "4" },
+                { from: "2", to: "5" },
+              ],
+              queue: ["3", "4", "5"],
+              visitedOrder: ["1", "2"],
+            },
             note: "Visit 2; enqueue 4, 5.",
           }),
           step(6, {
@@ -899,7 +1106,214 @@ def level_order(root):
                 highlights: { "2": "cur" },
               },
             },
+            structure: {
+              kind: "tree",
+              rootId: "1",
+              nodes: [
+                { id: "1", label: "1", state: "visited" },
+                { id: "2", label: "2", state: "visited" },
+                { id: "3", label: "3", state: "active" },
+                { id: "4", label: "4", state: "frontier" },
+                { id: "5", label: "5", state: "frontier" },
+              ],
+              edges: [
+                { from: "1", to: "2" },
+                { from: "1", to: "3" },
+                { from: "2", to: "4" },
+                { from: "2", to: "5" },
+              ],
+              queue: ["4", "5"],
+              visitedOrder: ["1", "2", "3"],
+            },
             note: "Level-order: 1, then 2,3, then 4,5.",
+          }),
+        ],
+      };
+
+    case "heap":
+      return {
+        kind,
+        title: "Heap — top-k with min-heap",
+        code: codeLines(`
+import heapq
+def top_k(nums, k):
+    heap = []
+    for x in nums:
+        heapq.heappush(heap, x)
+        if len(heap) > k:
+            heapq.heappop(heap)
+    return heap
+`),
+        steps: [
+          step(2, {
+            vars: { k: 2, x: 5 },
+            arrays: {
+              heap: { values: [5], highlights: { "0": "min" } },
+              nums: {
+                values: [5, 1, 9, 3],
+                highlights: { "0": "x" },
+              },
+            },
+            note: "Push 5. Size ≤ k.",
+          }),
+          step(2, {
+            vars: { k: 2, x: 1 },
+            arrays: {
+              heap: { values: [1, 5], highlights: { "0": "min" } },
+              nums: {
+                values: [5, 1, 9, 3],
+                highlights: { "1": "x" },
+              },
+            },
+            note: "Push 1. Heap keeps smallest on top.",
+          }),
+          step(4, {
+            vars: { k: 2, x: 9 },
+            arrays: {
+              heap: { values: [5, 9], highlights: { "0": "min" } },
+              nums: {
+                values: [5, 1, 9, 3],
+                highlights: { "2": "x" },
+              },
+            },
+            note: "Size > k → pop 1. Keep top-2: [5,9].",
+          }),
+          step(4, {
+            vars: { k: 2, x: 3 },
+            arrays: {
+              heap: { values: [5, 9], highlights: { "0": "min" } },
+              nums: {
+                values: [5, 1, 9, 3],
+                highlights: { "3": "x" },
+              },
+            },
+            note: "Push 3, pop 3. Answer still [5,9].",
+          }),
+        ],
+      };
+
+    case "backtracking":
+      return {
+        kind,
+        title: "Backtracking — subsets",
+        code: codeLines(`
+def subsets(nums):
+    out, path = [], []
+    def dfs(i):
+        if i == len(nums):
+            out.append(path[:])
+            return
+        path.append(nums[i]); dfs(i + 1); path.pop()
+        dfs(i + 1)
+    dfs(0)
+    return out
+`),
+        steps: [
+          step(5, {
+            vars: { i: 0 },
+            arrays: {
+              path: { values: [1], highlights: { "0": "pick" } },
+              nums: {
+                values: [1, 2],
+                highlights: { "0": "i" },
+              },
+            },
+            note: "Choose 1, recurse.",
+          }),
+          step(5, {
+            vars: { i: 1 },
+            arrays: {
+              path: { values: [1, 2], highlights: { "1": "pick" } },
+              nums: {
+                values: [1, 2],
+                highlights: { "1": "i" },
+              },
+            },
+            note: "Choose 2 → leaf [1,2].",
+          }),
+          step(5, {
+            vars: { i: 1 },
+            arrays: {
+              path: { values: [1], highlights: { "0": "keep" } },
+              nums: {
+                values: [1, 2],
+                highlights: { "1": "i" },
+              },
+            },
+            note: "Backtrack: pop 2, skip 2 → [1].",
+          }),
+          step(6, {
+            vars: { i: 0 },
+            arrays: {
+              path: { values: [], highlights: {} },
+              nums: {
+                values: [1, 2],
+                highlights: { "0": "skip" },
+              },
+            },
+            note: "Skip 1 entirely; explore paths without it.",
+          }),
+        ],
+      };
+
+    case "trie":
+      return {
+        kind,
+        title: "Trie — insert + search",
+        code: codeLines(`
+class Trie:
+    def __init__(self):
+        self.child = {}
+        self.end = False
+    def insert(self, word):
+        node = self
+        for ch in word:
+            node = node.child.setdefault(ch, Trie())
+        node.end = True
+    def search(self, word):
+        node = self
+        for ch in word:
+            if ch not in node.child: return False
+            node = node.child[ch]
+        return node.end
+`),
+        steps: [
+          step(5, {
+            vars: { ch: "c", word: "cat" },
+            arrays: {
+              path: { values: ["c"], highlights: { "0": "node" } },
+            },
+            note: "Insert 'c' edge from root.",
+          }),
+          step(5, {
+            vars: { ch: "a", word: "cat" },
+            arrays: {
+              path: {
+                values: ["c", "a"],
+                highlights: { "1": "node" },
+              },
+            },
+            note: "Then 'a', then 't'. Mark end.",
+          }),
+          step(6, {
+            vars: { word: "cat", end: true },
+            arrays: {
+              path: {
+                values: ["c", "a", "t"],
+                highlights: { "2": "end" },
+              },
+            },
+            note: "Word ends at t (end=True).",
+          }),
+          step(11, {
+            vars: { word: "car", found: false },
+            arrays: {
+              path: {
+                values: ["c", "a"],
+                highlights: { "1": "miss" },
+              },
+            },
+            note: "Search 'car': no 'r' child → False.",
           }),
         ],
       };

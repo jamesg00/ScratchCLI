@@ -255,7 +255,9 @@ export function NoteEditor({
         theme={dark ? oneDark : "light"}
         basicSetup={{
           lineNumbers: isPython,
-          foldGutter: false,
+          // Python's language support exposes fold ranges for classes and
+          // functions; this adds the VS Code-style expand/collapse controls.
+          foldGutter: isPython,
           highlightActiveLine: false,
           highlightActiveLineGutter: false,
           searchKeymap: true,

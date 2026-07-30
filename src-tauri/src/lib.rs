@@ -9,7 +9,10 @@ use commands::files::{
     read_text_file, remove_path, resolve_path, write_text_file,
 };
 use commands::grok::grok_chat;
-use commands::leetcode::{leetcode_get_problem, leetcode_list_problems};
+use commands::leetcode::{
+    leetcode_get_problem, leetcode_list_companies, leetcode_list_company_problems,
+    leetcode_list_problems,
+};
 use commands::notes::{
     archive_note, create_note, delete_note, get_note, list_deleted_notes, list_note_revisions,
     list_notes, permanently_delete_note, restore_note, search_notes, update_note,
@@ -82,6 +85,8 @@ pub fn run() {
             secrets_set,
             secrets_list_providers,
             leetcode_list_problems,
+            leetcode_list_companies,
+            leetcode_list_company_problems,
             leetcode_get_problem,
             read_text_file,
             write_text_file,

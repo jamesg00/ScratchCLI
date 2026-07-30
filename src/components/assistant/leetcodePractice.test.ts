@@ -72,13 +72,16 @@ describe("buildLeetCodeScaffold", () => {
       topicTags: ["Array", "Hash Table"],
       url: "https://leetcode.com/problems/two-sum/",
     };
-    const { file, warnings } = buildLeetCodeScaffold(problem);
-    expect(warnings).toEqual([]);
+    const { file, warnings, officialCaseCount } = buildLeetCodeScaffold(problem);
+    expect(warnings).toContain(
+      "LeetCode exposes 2 parseable official example(s). Add edge cases to CASES before local submit (minimum 4 cases).",
+    );
+    expect(officialCaseCount).toBe(2);
     expect(file.fileName).toBe("two_sum.py");
     expect(file.content).toContain("# LC: two-sum");
     expect(file.content).toContain("def twoSum");
     expect(file.content).toContain("pass");
     expect(file.content).toContain("[2, 7, 11, 15]");
-    expect(file.content).toContain("test_cases");
+    expect(file.content).toContain("CASES");
   });
 });

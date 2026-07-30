@@ -23,6 +23,7 @@ import { AppearanceDialog } from "../components/settings/AppearanceDialog";
 import { AiSettingsDialog } from "../components/settings/AiSettingsDialog";
 import { GrokSplitSash } from "../components/assistant/GrokSplitSash";
 import type { VizKind } from "../components/assistant/vizPlan";
+import { CometStars } from "../components/theme/CometStars";
 import { MatrixRain } from "../components/theme/MatrixRain";
 import {
   TerminalPanel,
@@ -58,9 +59,13 @@ import {
   useAppearanceStore,
   hydrateGrokApiKeyFromSecrets,
 } from "../stores/appearanceStore";
+import { useAiSettingsStore } from "../stores/aiSettingsStore";
+import { isAnyAiConfigured } from "../services/aiModels";
+import { secretsGet } from "../services/secrets";
 import { useNoteStore } from "../stores/noteStore";
 import { useSessionStore } from "../stores/sessionStore";
 import { useStudyStore } from "../stores/studyStore";
+import type { LessonId } from "../stores/studyStore";
 import {
   useInterviewStore,
   type InterviewDifficulty,
@@ -71,6 +76,7 @@ import { VIZ_KIND_LABELS, VIZ_KINDS } from "../components/assistant/vizPrompt";
 import { localPracticeScaffold } from "../components/assistant/localPractice";
 import { fetchAndBuildLcPractice } from "../components/assistant/leetcodeFlow";
 import { extractLcSlug, useLeetCodeStore } from "../stores/leetcodeStore";
+import { extractPracticeKey } from "../components/assistant/practiceFile";
 import { commandDefinition } from "../commands/registry";
 import {
   loadWorkspaceConfig,
@@ -95,6 +101,11 @@ const VisualizeDialog = lazy(() =>
 const StudyBoardDialog = lazy(() =>
   import("../components/study/StudyBoardDialog").then((module) => ({
     default: module.StudyBoardDialog,
+  })),
+);
+const LessonDialog = lazy(() =>
+  import("../components/study/LessonDialog").then((module) => ({
+    default: module.LessonDialog,
   })),
 );
 
@@ -133,6 +144,19 @@ export function App() {
   } = useNoteStore();
   const notes = useNoteStore((state) => state.notes);
   const appearance = useAppearanceStore();
+  const ai = useAiSettingsStore();
+  const [aiKeys, setAiKeys] = useState<
+    Partial<Record<"xai" | "openai" | "anthropic", string>>
+  >({});
+  const aiReady = isAnyAiConfigured({
+    assistantProvider: ai.assistantProvider,
+    coachProvider: ai.coachProvider,
+    keys: {
+      xai: aiKeys.xai ?? appearance.grokApiKey,
+      openai: aiKeys.openai,
+      anthropic: aiKeys.anthropic,
+    },
+  });
   const session = useSessionStore();
   const editorActions = useRef<EditorActions | null>(null);
   const [terminalRequest, setTerminalRequest] = useState<{
@@ -154,6 +178,8 @@ export function App() {
   const [vizInitialKind, setVizInitialKind] = useState<VizKind | undefined>();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [studyOpen, setStudyOpen] = useState(false);
+  const [lessonOpen, setLessonOpen] = useState(false);
+  const [activeLessonId, setActiveLessonId] = useState<LessonId | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
   const [welcomeOpen, setWelcomeOpen] = useState(
     () => localStorage.getItem("scratchcli-welcome-dismissed") !== "true",
@@ -205,6 +231,16 @@ export function App() {
 
       await ensureWebFontsLoaded(SYSTEM_FONTS);
       await hydrateGrokApiKeyFromSecrets();
+      const [xai, openai, anthropic] = await Promise.all([
+        secretsGet("xai"),
+        secretsGet("openai"),
+        secretsGet("anthropic"),
+      ]);
+      setAiKeys({
+        xai: xai ?? useAppearanceStore.getState().grokApiKey ?? undefined,
+        openai: openai ?? undefined,
+        anthropic: anthropic ?? undefined,
+      });
 
       // Always keep the full curated catalog (web + system); never drop web faces.
       let nextFonts: FontOption[] = [...SYSTEM_FONTS];
@@ -445,18 +481,119 @@ export function App() {
     [],
   );
 
+  const openDoneProblem = useCallback(
+    async (slug: string) => {
+      const key = slug.trim().toLowerCase();
+      if (!key) throw new Error("Missing problem id.");
+      const store = useLeetCodeStore.getState();
+      const savedPath = store.submittedPaths[key];
+      if (savedPath) {
+        const cwd = useSessionStore.getState().cwd;
+        const resolved = await fileService.resolvePath(cwd, savedPath);
+        const file = await fileService.readTextFile(resolved);
+        useSessionStore.getState().openFileDocument({
+          path: file.path,
+          content: file.content,
+          language: languageFromPath(file.path),
+        });
+        return;
+      }
+
+      const savedCode = store.submittedFiles[key];
+      if (savedCode?.trim()) {
+        const path = await createPracticeFile({
+          content: savedCode,
+          fileName: `${key.replace(/-/g, "_")}.py`,
+        });
+        store.saveSubmittedFile(key, savedCode, path);
+        return;
+      }
+
+      const snake = key.replace(/-/g, "_");
+      const historyHit = useStudyStore
+        .getState()
+        .history.find((item) => {
+          if (!item.path) return false;
+          const p = item.path.toLowerCase();
+          const t = (item.title ?? "").toLowerCase();
+          return (
+            p.includes(key) ||
+            p.includes(snake) ||
+            t.includes(key) ||
+            t.includes(snake)
+          );
+        });
+      if (historyHit?.path) {
+        const cwd = useSessionStore.getState().cwd;
+        const resolved = await fileService.resolvePath(cwd, historyHit.path);
+        const file = await fileService.readTextFile(resolved);
+        useSessionStore.getState().openFileDocument({
+          path: file.path,
+          content: file.content,
+          language: languageFromPath(file.path),
+        });
+        store.saveSubmittedFile(key, file.content, file.path);
+        return;
+      }
+
+      const cwd =
+        useSessionStore.getState().cwd || (await fileService.defaultCwd());
+      for (const name of [`${key}.py`, `${snake}.py`]) {
+        try {
+          const resolved = await fileService.resolvePath(cwd, name);
+          const file = await fileService.readTextFile(resolved);
+          useSessionStore.getState().openFileDocument({
+            path: file.path,
+            content: file.content,
+            language: "python",
+          });
+          store.saveSubmittedFile(key, file.content, file.path);
+          return;
+        } catch {
+          // try next candidate
+        }
+      }
+
+      try {
+        const entries = await fileService.listDirectory(cwd);
+        for (const entry of entries) {
+          if (entry.isDir || !entry.name.toLowerCase().endsWith(".py")) continue;
+          try {
+            const file = await fileService.readTextFile(entry.path);
+            const fileKey = extractPracticeKey(file.content);
+            if (fileKey === key) {
+              useSessionStore.getState().openFileDocument({
+                path: file.path,
+                content: file.content,
+                language: "python",
+              });
+              store.saveSubmittedFile(key, file.content, file.path);
+              return;
+            }
+          } catch {
+            // skip unreadable
+          }
+        }
+      } catch {
+        // cwd list failed
+      }
+
+      throw new Error(
+        `Couldn't find a file for ${key}. Open it once, type done, then try again.`,
+      );
+    },
+    [createPracticeFile],
+  );
+
   const startInterview = useCallback(
     async (difficulty: InterviewDifficulty, minutes = 25) => {
       useInterviewStore.getState().start(difficulty, minutes);
       const scaffold = localPracticeScaffold(difficulty);
-      const hasKey = Boolean(useAppearanceStore.getState().grokApiKey?.trim());
       await createPracticeFile({
         content: scaffold.content,
         fileName: scaffold.fileName,
       });
-      if (hasKey) {
-        openCoach();
-      }
+      openCoach();
     },
     [createPracticeFile, openCoach],
   );
@@ -775,6 +912,7 @@ export function App() {
       },
       getFontCatalog: () => fontCatalogRef.current,
       openGrok: () => openCoach(),
+      openStudy: () => setStudyOpen(true),
       openAssistant: () => openAssistant(),
       openAiSettings: () => setAiSettingsOpen(true),
       launchAgent: async (name) => {
@@ -1618,6 +1756,7 @@ export function App() {
       data-matrix={appearance.matrixRain ? "on" : "off"}
       style={shellStyle}
     >
+      {appearance.theme === "comet" && <CometStars />}
       {appearance.matrixRain && <MatrixRain />}
       <TabDragController />
       <section className="sticky-window">
@@ -1795,7 +1934,7 @@ export function App() {
                       </span>
                       <span>{session.shellMode.toUpperCase()}</span>
                       <span>
-                        {appearance.grokApiKey ? "AI ready" : "AI offline"}
+                        {aiReady ? "AI ready" : "AI offline"}
                       </span>
                       <span>{activeTab?.dirty ? "Unsaved" : "Saved"}</span>
                       <label>
@@ -1915,7 +2054,7 @@ export function App() {
                     </span>
                     <span>Local</span>
                     <span>
-                      {appearance.grokApiKey ? "AI ready" : "AI offline"}
+                      {aiReady ? "AI ready" : "AI offline"}
                     </span>
                     <span>Ctrl+K · Commands</span>
                   </footer>
@@ -1937,6 +2076,12 @@ export function App() {
                 <GrokHelperPanel
                   language={bufferLanguage}
                   buffer={bufferContent}
+                  contextKey={
+                    activeTab?.path ??
+                    activeTab?.noteId ??
+                    activeTab?.id ??
+                    statusTitle
+                  }
                   title={statusTitle}
                   width={session.grokWidth}
                   onWidthChange={(width) => session.setGrokWidth(width)}
@@ -1963,7 +2108,10 @@ export function App() {
                     }
                   }}
                   onCreatePracticeFile={createPracticeFile}
+                  onOpenSubmittedFile={(path) => void cliHandlers.openFile(path)}
+                  onOpenDoneProblem={openDoneProblem}
                   onOpenVisualize={() => openVisualize()}
+                  onOpenStudy={() => setStudyOpen(true)}
                 />
               </Suspense>
             )}
@@ -1976,6 +2124,12 @@ export function App() {
                 <AssistantPanel
                   language={bufferLanguage}
                   buffer={bufferContent}
+                  contextKey={
+                    activeTab?.path ??
+                    activeTab?.noteId ??
+                    activeTab?.id ??
+                    statusTitle
+                  }
                   title={statusTitle}
                   cwd={session.cwd}
                   width={session.grokWidth}
@@ -1994,6 +2148,7 @@ export function App() {
                 <GrokHelperPanel
                   language={bufferLanguage}
                   buffer=""
+                  contextKey="cli-coach"
                   title="CLI"
                   width={session.grokWidth}
                   onWidthChange={(width) => session.setGrokWidth(width)}
@@ -2001,7 +2156,10 @@ export function App() {
                   onOpenSettings={() => setAiSettingsOpen(true)}
                   onInsert={() => undefined}
                   onCreatePracticeFile={createPracticeFile}
+                  onOpenSubmittedFile={(path) => void cliHandlers.openFile(path)}
+                  onOpenDoneProblem={openDoneProblem}
                   onOpenVisualize={() => openVisualize()}
+                  onOpenStudy={() => setStudyOpen(true)}
                 />
               </Suspense>
             )}
@@ -2014,6 +2172,7 @@ export function App() {
                 <AssistantPanel
                   language={bufferLanguage}
                   buffer={bufferContent}
+                  contextKey="cli-assistant"
                   title="CLI"
                   cwd={session.cwd}
                   width={session.grokWidth}
@@ -2046,9 +2205,26 @@ export function App() {
           <StudyBoardDialog
             onClose={() => setStudyOpen(false)}
             onOpenViz={(kind) => openVisualize(kind)}
+            onOpenLesson={(lessonId) => {
+              setStudyOpen(false);
+              setActiveLessonId(lessonId);
+              setLessonOpen(true);
+            }}
           />
         </Suspense>
       )}
+      {lessonOpen && activeLessonId ? (
+        <Suspense fallback={null}>
+          <LessonDialog
+            lessonId={activeLessonId}
+            onClose={() => {
+              setLessonOpen(false);
+              setActiveLessonId(null);
+            }}
+            onCreatePracticeFile={createPracticeFile}
+          />
+        </Suspense>
+      ) : null}
       {notesOpen && (
         <NotesLibraryDialog
           initialNotes={notes}

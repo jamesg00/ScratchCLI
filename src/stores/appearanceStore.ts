@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { DEFAULT_FONT } from "../fonts/catalog";
 
-export type ThemeName = "light" | "dark" | "pro";
+export type ThemeName = "light" | "dark" | "pro" | "comet";
 
 type AppearanceState = {
   theme: ThemeName;
@@ -66,7 +66,7 @@ export const useAppearanceStore = create<AppearanceState>()(
           theme,
           backgroundColor: null,
           foregroundColor: null,
-          opacity: theme === "pro" ? 0.78 : 0.96,
+          opacity: theme === "pro" || theme === "comet" ? 0.78 : 0.96,
         }),
       setFontFamily: (fontFamily) => set({ fontFamily }),
       setFontSize: (fontSize) =>

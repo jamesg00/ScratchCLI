@@ -12,6 +12,7 @@ const themeDefaults = {
   light: { background: "#fff7c7", foreground: "#2b271f" },
   dark: { background: "#242321", foreground: "#eee9de" },
   pro: { background: "#0b0c0d", foreground: "#f1f1f1" },
+  comet: { background: "#071422", foreground: "#e6f3ff" },
 } as const;
 
 export function AppearanceDialog({ onClose, fonts }: Props) {
@@ -69,7 +70,7 @@ export function AppearanceDialog({ onClose, fonts }: Props) {
         </header>
         <div className="appearance-dialog-body">
           <div className="theme-buttons" aria-label="Theme">
-            {(["light", "dark", "pro"] as const).map((theme) => (
+            {(["light", "dark", "pro", "comet"] as const).map((theme) => (
               <button
                 type="button"
                 data-active={appearance.theme === theme}

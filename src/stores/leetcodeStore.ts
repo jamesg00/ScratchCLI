@@ -5,9 +5,14 @@ type LeetCodeState = {
   completedSlugs: string[];
   skippedSlugs: string[];
   lastSlug: string | null;
+  preferredCompanySlug: string;
+  submittedFiles: Record<string, string>;
+  submittedPaths: Record<string, string>;
   markDone: (slug: string) => void;
+  saveSubmittedFile: (slug: string, content: string, path?: string) => void;
   markSkipped: (slug: string) => void;
   setLastSlug: (slug: string | null) => void;
+  setPreferredCompanySlug: (slug: string) => void;
   isDone: (slug: string) => boolean;
   resetProgress: () => void;
 };
@@ -18,6 +23,9 @@ export const useLeetCodeStore = create<LeetCodeState>()(
       completedSlugs: [],
       skippedSlugs: [],
       lastSlug: null,
+      preferredCompanySlug: "amazon",
+      submittedFiles: {},
+      submittedPaths: {},
       markDone: (slug) => {
         const key = slug.trim().toLowerCase();
         if (!key) return;
@@ -26,6 +34,14 @@ export const useLeetCodeStore = create<LeetCodeState>()(
             ? state.completedSlugs
             : [...state.completedSlugs, key],
           lastSlug: key,
+        }));
+      },
+      saveSubmittedFile: (slug, content, path) => {
+        const key = slug.trim().toLowerCase();
+        if (!key || !content.trim()) return;
+        set((state) => ({
+          submittedFiles: { ...state.submittedFiles, [key]: content },
+          ...(path ? { submittedPaths: { ...state.submittedPaths, [key]: path } } : {}),
         }));
       },
       markSkipped: (slug) => {
@@ -38,10 +54,19 @@ export const useLeetCodeStore = create<LeetCodeState>()(
         }));
       },
       setLastSlug: (slug) => set({ lastSlug: slug }),
+      setPreferredCompanySlug: (slug) =>
+        set({ preferredCompanySlug: slug.trim().toLowerCase() || "amazon" }),
       isDone: (slug) =>
         get().completedSlugs.includes(slug.trim().toLowerCase()),
       resetProgress: () =>
-        set({ completedSlugs: [], skippedSlugs: [], lastSlug: null }),
+        set({
+          completedSlugs: [],
+          skippedSlugs: [],
+          submittedFiles: {},
+          submittedPaths: {},
+          lastSlug: null,
+          preferredCompanySlug: "amazon",
+        }),
     }),
     { name: "scratchcli-leetcode" },
   ),

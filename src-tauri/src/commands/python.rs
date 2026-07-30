@@ -52,8 +52,37 @@ fn prepare_python_file(code: String) -> Result<(tempfile::TempDir, std::path::Pa
         .tempdir()
         .map_err(|_| CoreError::PythonExecution)?;
     let path = directory.path().join("main.py");
-    std::fs::write(&path, code).map_err(|_| CoreError::PythonExecution)?;
+    std::fs::write(&path, prepare_python_source(&code)).map_err(|_| CoreError::PythonExecution)?;
     Ok((directory, path))
+}
+
+fn prepare_python_source(code: &str) -> String {
+    let mut out = String::new();
+    if !code.contains("from __future__ import annotations") {
+        out.push_str("from __future__ import annotations\n\n");
+    }
+
+    let mut prelude = String::new();
+    if code.contains("ListNode") && !code.contains("class ListNode") {
+        prelude.push_str(
+            "class ListNode:\n    def __init__(self, val=0, next=None):\n        self.val = val\n        self.next = next\n\n",
+        );
+    }
+    if code.contains("TreeNode") && !code.contains("class TreeNode") {
+        prelude.push_str(
+            "class TreeNode:\n    def __init__(self, val=0, left=None, right=None):\n        self.val = val\n        self.left = left\n        self.right = right\n\n",
+        );
+    }
+    if code.contains("Node") && !code.contains("class Node") {
+        prelude.push_str(
+            "class Node:\n    def __init__(self, val=0, left=None, right=None, next=None, neighbors=None, random=None):\n        self.val = val\n        self.left = left\n        self.right = right\n        self.next = next\n        self.neighbors = neighbors if neighbors is not None else []\n        self.random = random\n\n",
+        );
+    }
+    if !prelude.is_empty() {
+        out.push_str(&prelude);
+    }
+    out.push_str(code);
+    out
 }
 
 async fn run_file(

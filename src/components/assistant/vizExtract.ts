@@ -6,6 +6,11 @@ export type VizExtractedInputs = {
   target?: number;
   k?: number;
   n?: number;
+  /**
+   * Optional adjacency mapping extracted from a simple dict literal.
+   * Example: graph = {"A":["B","C"], "B":["D"]}
+   */
+  graphAdj?: Record<string, VizScalar[]>;
   /** Human-readable summary, e.g. nums=[1,2,3] target=9 */
   summary: string;
 };
@@ -84,6 +89,147 @@ function findMatchingBracket(text: string, openIdx: number): number {
     }
   }
   return -1;
+}
+
+function findMatchingCurlyBrace(text: string, openIdx: number): number {
+  let depth = 0;
+  let inQuote: '"' | "'" | null = null;
+  for (let i = openIdx; i < text.length; i += 1) {
+    const ch = text[i]!;
+    if (inQuote) {
+      if (ch === inQuote && text[i - 1] !== "\\") inQuote = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      inQuote = ch;
+      continue;
+    }
+    if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+function extractSimpleAdjacencyDict(
+  buffer: string,
+): Record<string, VizScalar[]> | undefined {
+  // Look for: something = { ... }
+  const re = /\b([A-Za-z_]\w*)\s*=\s*\{/g;
+  let match: RegExpExecArray | null;
+  let tries = 0;
+  while ((match = re.exec(buffer)) !== null && tries < 6) {
+    tries += 1;
+    const openIdx = match.index + match[0].length - 1; // at "{"
+    const closeIdx = findMatchingCurlyBrace(buffer, openIdx);
+    if (closeIdx < 0) continue;
+    const dictLit = buffer.slice(openIdx, closeIdx + 1);
+    if (!dictLit.includes(":") || !dictLit.includes("[")) continue;
+
+    // Parse top-level entries as: key : [ ... ]
+    const body = dictLit.slice(1, -1).trim();
+    if (!body) continue;
+
+    const entries: string[] = [];
+    let inQuote: '"' | "'" | null = null;
+    let bracketDepth = 0;
+    let start = 0;
+    for (let i = 0; i < body.length; i += 1) {
+      const ch = body[i]!;
+      if (inQuote) {
+        if (ch === inQuote && body[i - 1] !== "\\") inQuote = null;
+        continue;
+      }
+      if (ch === '"' || ch === "'") {
+        inQuote = ch;
+        continue;
+      }
+      if (ch === "[") bracketDepth += 1;
+      else if (ch === "]") bracketDepth -= 1;
+
+      if (ch === "," && bracketDepth === 0) {
+        entries.push(body.slice(start, i).trim());
+        start = i + 1;
+      }
+    }
+    const last = body.slice(start).trim();
+    if (last) entries.push(last);
+    if (entries.length === 0) continue;
+
+    const adjacency: Record<string, VizScalar[]> = {};
+    let totalEdges = 0;
+    let ok = true;
+
+    for (const entry of entries) {
+      const colonIdx = (() => {
+        // Find first ':' not inside quotes/brackets.
+        let q: '"' | "'" | null = null;
+        let depth = 0;
+        for (let i = 0; i < entry.length; i += 1) {
+          const ch = entry[i]!;
+          if (q) {
+            if (ch === q && entry[i - 1] !== "\\") q = null;
+            continue;
+          }
+          if (ch === '"' || ch === "'") {
+            q = ch;
+            continue;
+          }
+          if (ch === "[") depth += 1;
+          else if (ch === "]") depth -= 1;
+          if (ch === ":" && depth === 0) return i;
+        }
+        return -1;
+      })();
+
+      if (colonIdx < 0) {
+        ok = false;
+        break;
+      }
+      const keyPart = entry.slice(0, colonIdx).trim();
+      const valuePart = entry.slice(colonIdx + 1).trim();
+
+      const key = (() => {
+        if (
+          (keyPart.startsWith('"') && keyPart.endsWith('"')) ||
+          (keyPart.startsWith("'") && keyPart.endsWith("'"))
+        ) {
+          return keyPart.slice(1, -1);
+        }
+        // bare identifier / number
+        const m = keyPart.match(/^[A-Za-z_]\w*$/) ?? keyPart.match(/^-?\d+$/);
+        if (!m) return null;
+        return keyPart;
+      })();
+
+      if (!key) {
+        ok = false;
+        break;
+      }
+
+      const neighbors = parseListLiteral(valuePart);
+      if (!neighbors) {
+        ok = false;
+        break;
+      }
+      if (neighbors.length > 24) {
+        ok = false;
+        break;
+      }
+      adjacency[key] = neighbors;
+      totalEdges += neighbors.length;
+    }
+
+    if (!ok) continue;
+    if (totalEdges === 0) continue;
+    if (Object.keys(adjacency).length > 16) continue;
+    if (totalEdges > 64) continue;
+
+    return adjacency;
+  }
+  return undefined;
 }
 
 function extractNamedLists(
@@ -227,6 +373,8 @@ export function extractVizInputs(buffer: string): VizExtractedInputs | null {
   const k = extractNumberAssign(buffer, ["k", "window", "window_size"]);
   const n = extractNumberAssign(buffer, ["n", "N"]);
 
+  const graphAdj = extractSimpleAdjacencyDict(buffer);
+
   if (uniqueArrays.length === 0 && strings.length === 0) {
     // Scalars alone aren't enough to seed a walkthrough
     if (target === undefined && k === undefined && n === undefined) return null;
@@ -257,6 +405,7 @@ export function extractVizInputs(buffer: string): VizExtractedInputs | null {
     target,
     k,
     n,
+    graphAdj,
     summary: parts.join(" ") || "extracted inputs",
   };
 }

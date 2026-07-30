@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { VizPlan, VizStep } from "./vizPlan";
+import { StructureViz } from "./StructureViz";
 
 type Props = {
   plan: VizPlan;
@@ -104,6 +105,7 @@ export function CodeVizPlayer({ plan }: Props) {
         ))}
       </pre>
 
+      {step.structure ? <StructureViz structure={step.structure} /> : null}
       <StepArrays step={step} />
       <StepVars step={step} />
       {step.note ? <p className="code-viz-note">{step.note}</p> : null}

@@ -81,6 +81,7 @@ export type CliHandlers = {
   onFontsChanged: (fonts: FontOption[]) => void;
   getFontCatalog: () => FontOption[];
   openGrok?: () => void;
+  openStudy?: () => void;
   openAssistant?: () => void;
   openAiSettings?: () => void;
   launchAgent?: (name: "claude" | "codex") => Promise<string>;
@@ -667,6 +668,14 @@ export function TerminalPanel({
           append("system", "Opened DSA coach.");
         } else {
           append("error", "DSA coach is unavailable.");
+        }
+        break;
+      case "study":
+        if (handlers.openStudy) {
+          handlers.openStudy();
+          append("system", "Opened Study board.");
+        } else {
+          append("error", "Study board is unavailable.");
         }
         break;
       case "assistant":
