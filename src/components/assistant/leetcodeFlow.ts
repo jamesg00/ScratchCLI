@@ -78,7 +78,11 @@ export async function fetchAndBuildLcPractice(
   req: LcPracticeRequest,
 ): Promise<ScaffoldResult & { problem: LeetCodeProblem }> {
   const maxAttempts =
-    req.mode === "slug" ? 1 : req.mode === "easy" || req.mode === "medium" ? 8 : 6;
+    req.mode === "slug"
+      ? 1
+      : req.mode === "easy" || req.mode === "medium"
+        ? 8
+        : 6;
 
   let lastError: unknown;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {

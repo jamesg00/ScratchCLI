@@ -14,11 +14,7 @@ type Props = {
   onOpenLesson?: (lessonId: LessonId) => void;
 };
 
-export function StudyBoardDialog({
-  onClose,
-  onOpenViz,
-  onOpenLesson,
-}: Props) {
+export function StudyBoardDialog({ onClose, onOpenViz, onOpenLesson }: Props) {
   const streakDays = useStudyStore((s) => s.streakDays);
   const history = useStudyStore((s) => s.history);
   const pinned = useStudyStore((s) => s.pinnedPatterns);

@@ -41,7 +41,9 @@ export const useLeetCodeStore = create<LeetCodeState>()(
         if (!key || !content.trim()) return;
         set((state) => ({
           submittedFiles: { ...state.submittedFiles, [key]: content },
-          ...(path ? { submittedPaths: { ...state.submittedPaths, [key]: path } } : {}),
+          ...(path
+            ? { submittedPaths: { ...state.submittedPaths, [key]: path } }
+            : {}),
         }));
       },
       markSkipped: (slug) => {

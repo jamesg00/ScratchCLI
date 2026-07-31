@@ -1,4 +1,9 @@
-import type { Lesson, LessonCopyBlock, LessonExercise, LessonTopic } from "./lessons";
+import type {
+  Lesson,
+  LessonCopyBlock,
+  LessonExercise,
+  LessonTopic,
+} from "./lessons";
 
 function p(text: string): LessonCopyBlock {
   return { kind: "paragraph", text };
@@ -20,37 +25,43 @@ export const EXTRA_LESSON_TOPICS: LessonTopic[] = [
   {
     id: "heaps",
     title: "Heaps / Priority queue",
-    description: "Keep a dynamic top-k, median, or next-best event without full sorts.",
+    description:
+      "Keep a dynamic top-k, median, or next-best event without full sorts.",
     lessonIds: ["lesson-heaps"],
   },
   {
     id: "recursion_basics",
     title: "Recursion fundamentals",
-    description: "Define base cases, recurse on a smaller state, and trust the call stack.",
+    description:
+      "Define base cases, recurse on a smaller state, and trust the call stack.",
     lessonIds: ["lesson-recursion"],
   },
   {
     id: "backtracking",
     title: "Backtracking",
-    description: "Build candidates, prune dead ends, and undo choices to explore the space.",
+    description:
+      "Build candidates, prune dead ends, and undo choices to explore the space.",
     lessonIds: ["lesson-backtracking"],
   },
   {
     id: "dynamic_programming",
     title: "Dynamic programming",
-    description: "Turn overlapping subproblems into table fills with clear state transitions.",
+    description:
+      "Turn overlapping subproblems into table fills with clear state transitions.",
     lessonIds: ["lesson-dp-basics", "lesson-dp-advanced"],
   },
   {
     id: "graphs_deep",
     title: "Graphs (BFS / DFS / advanced)",
-    description: "Traverse adjacency lists, track visited state, then layer on shortest path ideas.",
+    description:
+      "Traverse adjacency lists, track visited state, then layer on shortest path ideas.",
     lessonIds: ["lesson-graphs", "lesson-graphs-advanced"],
   },
   {
     id: "tries",
     title: "Tries (prefix trees)",
-    description: "Share prefixes for insert/search/autocomplete in dictionary-style problems.",
+    description:
+      "Share prefixes for insert/search/autocomplete in dictionary-style problems.",
     lessonIds: ["lesson-tries"],
   },
 ];
@@ -63,7 +74,8 @@ export const EXTRA_LESSONS: Lesson[] = [
     id: EXTRA_SLIDING_LESSON_ID,
     topicId: "strings_sliding_window",
     title: "Sliding window — variable + at-most-k",
-    blurb: "Grow/shrink windows with frequency maps for longest/shortest valid substrings.",
+    blurb:
+      "Grow/shrink windows with frequency maps for longest/shortest valid substrings.",
     estimatedMinutes: 18,
     learningGoals: [
       "Recognize variable-size windows with a validity constraint",
@@ -90,7 +102,9 @@ export const EXTRA_LESSONS: Lesson[] = [
         type: "concept",
         title: "Variable window invariant",
         blocks: [
-          p("Keep a right pointer expanding, and a left pointer that only moves forward to restore validity."),
+          p(
+            "Keep a right pointer expanding, and a left pointer that only moves forward to restore validity.",
+          ),
           bullets([
             "Expand right → include s[right]",
             "While invalid → drop s[left] and left++",
@@ -108,14 +122,17 @@ export const EXTRA_LESSONS: Lesson[] = [
         type: "viz",
         title: "See the window move",
         vizKind: "sliding_window",
-        content: "Watch left/right and the validity condition advance together.",
+        content:
+          "Watch left/right and the validity condition advance together.",
       },
       {
         id: "sw2-example",
         type: "worked_example",
         title: "At most 2 distinct",
         blocks: [
-          p('On "eceba" with k=2: expand to "ece", shrink when "b" adds a 3rd distinct, then continue.'),
+          p(
+            'On "eceba" with k=2: expand to "ece", shrink when "b" adds a 3rd distinct, then continue.',
+          ),
           bullets([
             "Answer candidates: ece (3), then ce (2), then ba (2)",
             "Best length stays 3",
@@ -126,10 +143,12 @@ export const EXTRA_LESSONS: Lesson[] = [
         id: "sw2-check",
         type: "checkpoint",
         title: "When do you shrink?",
-        prompt: "For longest substring with ≤ k distinct chars, when should left move?",
+        prompt:
+          "For longest substring with ≤ k distinct chars, when should left move?",
         hint: "Think about map size after inserting s[right].",
         answer: "While the number of positive-count keys exceeds k.",
-        takeaway: "Shrink is driven by the invariant, not by a fixed window size.",
+        takeaway:
+          "Shrink is driven by the invariant, not by a fixed window size.",
       },
       {
         id: "sw2-pitfall",
@@ -148,7 +167,8 @@ export const EXTRA_LESSONS: Lesson[] = [
         type: "exercise",
         title: "Practice: longest with ≤ k distinct",
         exerciseId: "ex-sliding-window-2",
-        intro: "Implement the variable window for at most k distinct characters.",
+        intro:
+          "Implement the variable window for at most k distinct characters.",
         successCriteria: [
           "Two pointers only move forward",
           "Map tracks live character counts",
@@ -173,7 +193,8 @@ export const EXTRA_LESSONS: Lesson[] = [
     id: "lesson-heaps",
     topicId: "heaps",
     title: "Heaps — keep only what matters",
-    blurb: "Use a min-heap or max-heap when you repeatedly need the current extreme.",
+    blurb:
+      "Use a min-heap or max-heap when you repeatedly need the current extreme.",
     estimatedMinutes: 16,
     learningGoals: [
       "Know when a heap beats sorting each time",
@@ -200,7 +221,9 @@ export const EXTRA_LESSONS: Lesson[] = [
         type: "concept",
         title: "Priority queue idea",
         blocks: [
-          p("A heap stores elements so the smallest (or largest) is always available in O(1) peek / O(log n) pop."),
+          p(
+            "A heap stores elements so the smallest (or largest) is always available in O(1) peek / O(log n) pop.",
+          ),
           bullets([
             "Min-heap: parent ≤ children",
             "Max-heap: parent ≥ children (or negate into a min-heap)",
@@ -236,9 +259,11 @@ export const EXTRA_LESSONS: Lesson[] = [
         id: "heap-check",
         type: "checkpoint",
         title: "Why min-heap for kth largest?",
-        prompt: "To find the kth largest with a heap of size k, do you use min-heap or max-heap?",
+        prompt:
+          "To find the kth largest with a heap of size k, do you use min-heap or max-heap?",
         hint: "You want to eject the weakest of the keepers.",
-        answer: "Min-heap of size k: pop removes the smallest among the current top-k candidates.",
+        answer:
+          "Min-heap of size k: pop removes the smallest among the current top-k candidates.",
         takeaway: "Polarity follows what you need to discard.",
       },
       {
@@ -271,7 +296,8 @@ export const EXTRA_LESSONS: Lesson[] = [
     id: "lesson-recursion",
     topicId: "recursion_basics",
     title: "Recursion — smaller problem, same rule",
-    blurb: "Write the relation, nail the base case, then let the stack finish the work.",
+    blurb:
+      "Write the relation, nail the base case, then let the stack finish the work.",
     estimatedMinutes: 14,
     learningGoals: [
       "Separate base case from recursive case",
@@ -298,7 +324,9 @@ export const EXTRA_LESSONS: Lesson[] = [
         type: "concept",
         title: "The recursion contract",
         blocks: [
-          p("A recursive function solves a problem by calling itself on a strictly smaller instance, then combining."),
+          p(
+            "A recursive function solves a problem by calling itself on a strictly smaller instance, then combining.",
+          ),
           bullets([
             "Base: smallest inputs return immediately",
             "Progress: each call reduces size / distance to base",
@@ -311,7 +339,8 @@ export const EXTRA_LESSONS: Lesson[] = [
         type: "viz",
         title: "Factorial unwind",
         vizKind: "recursion",
-        content: "Follow calls down to the base case, then multiply on the way back.",
+        content:
+          "Follow calls down to the base case, then multiply on the way back.",
       },
       {
         id: "rec-check",
@@ -319,7 +348,8 @@ export const EXTRA_LESSONS: Lesson[] = [
         title: "Termination",
         prompt: "What two things must every correct recursive solution have?",
         hint: "One stops; one moves toward stop.",
-        answer: "A reachable base case, and a recursive step that moves toward that base case.",
+        answer:
+          "A reachable base case, and a recursive step that moves toward that base case.",
         takeaway: "No progress measure ⇒ stack overflow.",
       },
       {
@@ -328,13 +358,22 @@ export const EXTRA_LESSONS: Lesson[] = [
         title: "Practice: reverse a list recursively",
         exerciseId: "ex-recursion-1",
         intro: "Reverse a Python list using recursion (no loops).",
-        successCriteria: ["Base case for empty/singleton", "Recursive combine is correct"],
+        successCriteria: [
+          "Base case for empty/singleton",
+          "Recursive combine is correct",
+        ],
       },
       {
         id: "rec-recap",
         type: "recap",
         title: "Recap",
-        blocks: [bullets(["Base + progress + combine", "Trace small n first", "Watch stack depth"])],
+        blocks: [
+          bullets([
+            "Base + progress + combine",
+            "Trace small n first",
+            "Watch stack depth",
+          ]),
+        ],
       },
     ],
   },
@@ -342,7 +381,8 @@ export const EXTRA_LESSONS: Lesson[] = [
     id: "lesson-backtracking",
     topicId: "backtracking",
     title: "Backtracking — choose, explore, undo",
-    blurb: "DFS over decisions with prune + undo for subsets, permutations, and constraint search.",
+    blurb:
+      "DFS over decisions with prune + undo for subsets, permutations, and constraint search.",
     estimatedMinutes: 18,
     learningGoals: [
       "Model the decision tree",
@@ -392,9 +432,11 @@ export const EXTRA_LESSONS: Lesson[] = [
         id: "bt-check",
         type: "checkpoint",
         title: "Why path[:]?",
-        prompt: "Why append path[:] (a copy) to the answer list instead of path?",
+        prompt:
+          "Why append path[:] (a copy) to the answer list instead of path?",
         hint: "Lists are mutable references.",
-        answer: "Because later backtracking mutates path; without a copy, previous answers change.",
+        answer:
+          "Because later backtracking mutates path; without a copy, previous answers change.",
         takeaway: "Snapshot results at leaves.",
       },
       {
@@ -403,13 +445,22 @@ export const EXTRA_LESSONS: Lesson[] = [
         title: "Practice: subsets",
         exerciseId: "ex-backtracking-1",
         intro: "Generate all subsets of a distinct integer array.",
-        successCriteria: ["Uses choose/skip or index DFS", "Returns all 2^n subsets"],
+        successCriteria: [
+          "Uses choose/skip or index DFS",
+          "Returns all 2^n subsets",
+        ],
       },
       {
         id: "bt-recap",
         type: "recap",
         title: "Recap",
-        blocks: [bullets(["Choose → explore → undo", "Copy at success", "Prune early"])],
+        blocks: [
+          bullets([
+            "Choose → explore → undo",
+            "Copy at success",
+            "Prune early",
+          ]),
+        ],
       },
     ],
   },
@@ -417,7 +468,8 @@ export const EXTRA_LESSONS: Lesson[] = [
     id: "lesson-dp-basics",
     topicId: "dynamic_programming",
     title: "DP basics — overlapping subproblems",
-    blurb: "Define dp[state], the transition, and the base cases before coding loops.",
+    blurb:
+      "Define dp[state], the transition, and the base cases before coding loops.",
     estimatedMinutes: 18,
     learningGoals: [
       "Spot overlapping subproblems + optimal substructure",
@@ -444,7 +496,9 @@ export const EXTRA_LESSONS: Lesson[] = [
         type: "concept",
         title: "State first",
         blocks: [
-          p("DP is recursion with memory. Name the state so the transition is obvious."),
+          p(
+            "DP is recursion with memory. Name the state so the transition is obvious.",
+          ),
           bullets([
             "dp[i] = answer for prefix/size i",
             "Transition: how dp[i] uses earlier cells",
@@ -463,7 +517,8 @@ export const EXTRA_LESSONS: Lesson[] = [
         id: "dp1-check",
         type: "checkpoint",
         title: "Climb stairs transition",
-        prompt: "If dp[i] = ways to climb i steps taking 1 or 2, what is the transition?",
+        prompt:
+          "If dp[i] = ways to climb i steps taking 1 or 2, what is the transition?",
         hint: "Last jump was 1 or 2.",
         answer: "dp[i] = dp[i-1] + dp[i-2]",
         takeaway: "Transitions encode the last decision.",
@@ -473,14 +528,20 @@ export const EXTRA_LESSONS: Lesson[] = [
         type: "exercise",
         title: "Practice: climb stairs",
         exerciseId: "ex-dp-1",
-        intro: "Return number of distinct ways to climb n stairs (1 or 2 at a time).",
+        intro:
+          "Return number of distinct ways to climb n stairs (1 or 2 at a time).",
         successCriteria: ["Bottom-up or memoized", "Correct for n=1..10 tests"],
       },
       {
         id: "dp1-recap",
         type: "recap",
         title: "Recap",
-        blocks: [bullets(["State → transition → base → loop order", "Start with the recurrence on paper"])],
+        blocks: [
+          bullets([
+            "State → transition → base → loop order",
+            "Start with the recurrence on paper",
+          ]),
+        ],
       },
     ],
   },
@@ -488,7 +549,8 @@ export const EXTRA_LESSONS: Lesson[] = [
     id: "lesson-dp-advanced",
     topicId: "dynamic_programming",
     title: "Advanced DP — 2D & knapsack family",
-    blurb: "Grid paths, LCS-style tables, and 0/1 knapsack share the same fill discipline.",
+    blurb:
+      "Grid paths, LCS-style tables, and 0/1 knapsack share the same fill discipline.",
     estimatedMinutes: 20,
     learningGoals: [
       "Set up 2D dp[i][j] meanings",
@@ -505,17 +567,16 @@ export const EXTRA_LESSONS: Lesson[] = [
       "Reusing a cell in 0/1 knapsack with the wrong loop direction",
       "Mixing 'count ways' with 'boolean reachable'",
     ],
-    complexityChecklist: [
-      "Grid n×m: O(nm)",
-      "Knapsack n×W: O(nW)",
-    ],
+    complexityChecklist: ["Grid n×m: O(nm)", "Knapsack n×W: O(nW)"],
     steps: [
       {
         id: "dp2-concept",
         type: "concept",
         title: "Two axes",
         blocks: [
-          p("When two sequences or a grid are involved, index both dimensions and decide what dp[i][j] means."),
+          p(
+            "When two sequences or a grid are involved, index both dimensions and decide what dp[i][j] means.",
+          ),
           callout(
             "strategy",
             "Knapsack decision",
@@ -534,7 +595,8 @@ export const EXTRA_LESSONS: Lesson[] = [
         id: "dp2-check",
         type: "checkpoint",
         title: "0/1 vs unbounded",
-        prompt: "In 1D knapsack, why does loop direction differ for 0/1 vs unbounded?",
+        prompt:
+          "In 1D knapsack, why does loop direction differ for 0/1 vs unbounded?",
         hint: "Can the same item be reused in one pass?",
         answer:
           "0/1 loops weights downward so each item is used once; unbounded loops upward to allow reuse.",
@@ -545,14 +607,24 @@ export const EXTRA_LESSONS: Lesson[] = [
         type: "exercise",
         title: "Practice: subset sum",
         exerciseId: "ex-dp-2",
-        intro: "Return whether any subset sums to target (0/1 knapsack boolean).",
-        successCriteria: ["Boolean DP or recursion+memo", "Handles empty/zero cases"],
+        intro:
+          "Return whether any subset sums to target (0/1 knapsack boolean).",
+        successCriteria: [
+          "Boolean DP or recursion+memo",
+          "Handles empty/zero cases",
+        ],
       },
       {
         id: "dp2-recap",
         type: "recap",
         title: "Recap",
-        blocks: [bullets(["Name dp[i][j]", "Fill borders first", "Match loop direction to reuse rules"])],
+        blocks: [
+          bullets([
+            "Name dp[i][j]",
+            "Fill borders first",
+            "Match loop direction to reuse rules",
+          ]),
+        ],
       },
     ],
   },
@@ -560,7 +632,8 @@ export const EXTRA_LESSONS: Lesson[] = [
     id: "lesson-graphs",
     topicId: "graphs_deep",
     title: "Graphs — BFS & DFS on adjacency lists",
-    blurb: "Model nodes/edges, track visited, and pick BFS for layers or DFS for path exploration.",
+    blurb:
+      "Model nodes/edges, track visited, and pick BFS for layers or DFS for path exploration.",
     estimatedMinutes: 18,
     learningGoals: [
       "Build / read an adjacency list",
@@ -577,10 +650,7 @@ export const EXTRA_LESSONS: Lesson[] = [
       "Treating undirected edges as one-way",
       "Using DFS when shortest hop count is required",
     ],
-    complexityChecklist: [
-      "Time O(V+E)",
-      "Space O(V) for visited / queue",
-    ],
+    complexityChecklist: ["Time O(V+E)", "Space O(V) for visited / queue"],
     steps: [
       {
         id: "g1-concept",
@@ -629,7 +699,13 @@ export const EXTRA_LESSONS: Lesson[] = [
         id: "g1-recap",
         type: "recap",
         title: "Recap",
-        blocks: [bullets(["Adj list + visited", "BFS for layers", "DFS for exploration"])],
+        blocks: [
+          bullets([
+            "Adj list + visited",
+            "BFS for layers",
+            "DFS for exploration",
+          ]),
+        ],
       },
     ],
   },
@@ -637,7 +713,8 @@ export const EXTRA_LESSONS: Lesson[] = [
     id: "lesson-graphs-advanced",
     topicId: "graphs_deep",
     title: "Advanced graphs — topo sort & multi-source",
-    blurb: "Layer Kahn's algorithm, cycle detection, and multi-source BFS on top of basics.",
+    blurb:
+      "Layer Kahn's algorithm, cycle detection, and multi-source BFS on top of basics.",
     estimatedMinutes: 20,
     learningGoals: [
       "Detect cycles / order tasks with topological sort",
@@ -664,7 +741,9 @@ export const EXTRA_LESSONS: Lesson[] = [
         type: "concept",
         title: "Kahn's idea",
         blocks: [
-          p("Track indegrees. Repeatedly take nodes with indegree 0 and reduce neighbors — if you process all nodes, the graph was a DAG."),
+          p(
+            "Track indegrees. Repeatedly take nodes with indegree 0 and reduce neighbors — if you process all nodes, the graph was a DAG.",
+          ),
           callout(
             "strategy",
             "Multi-source",
@@ -685,7 +764,8 @@ export const EXTRA_LESSONS: Lesson[] = [
         title: "Cycle signal",
         prompt: "In Kahn topo sort, how do you know a cycle exists?",
         hint: "Compare processed count to V.",
-        answer: "If fewer than V nodes are processed, remaining nodes are in a cycle.",
+        answer:
+          "If fewer than V nodes are processed, remaining nodes are in a cycle.",
         takeaway: "Topo success ≡ DAG.",
       },
       {
@@ -693,14 +773,24 @@ export const EXTRA_LESSONS: Lesson[] = [
         type: "exercise",
         title: "Practice: can finish courses",
         exerciseId: "ex-graph-2",
-        intro: "Given prereq edges, return whether all courses can be finished (cycle detect).",
-        successCriteria: ["Topo or DFS color mark", "True on DAG, False on cycle"],
+        intro:
+          "Given prereq edges, return whether all courses can be finished (cycle detect).",
+        successCriteria: [
+          "Topo or DFS color mark",
+          "True on DAG, False on cycle",
+        ],
       },
       {
         id: "g2-recap",
         type: "recap",
         title: "Recap",
-        blocks: [bullets(["Indegree queue for topo", "Multi-source for 'nearest' on grids", "Cycle ⇒ cannot order"])],
+        blocks: [
+          bullets([
+            "Indegree queue for topo",
+            "Multi-source for 'nearest' on grids",
+            "Cycle ⇒ cannot order",
+          ]),
+        ],
       },
     ],
   },
@@ -708,7 +798,8 @@ export const EXTRA_LESSONS: Lesson[] = [
     id: "lesson-tries",
     topicId: "tries",
     title: "Tries — shared prefixes",
-    blurb: "Store words in a character tree for insert, search, and prefix queries.",
+    blurb:
+      "Store words in a character tree for insert, search, and prefix queries.",
     estimatedMinutes: 16,
     learningGoals: [
       "Implement insert / search / startsWith",
@@ -735,7 +826,9 @@ export const EXTRA_LESSONS: Lesson[] = [
         type: "concept",
         title: "Node = map of children + end",
         blocks: [
-          p("Each edge is a character. A boolean (or count) marks that a word ends at this node."),
+          p(
+            "Each edge is a character. A boolean (or count) marks that a word ends at this node.",
+          ),
           bullets([
             "insert: walk/create children, set end",
             "search: walk; true only if end",
@@ -754,7 +847,8 @@ export const EXTRA_LESSONS: Lesson[] = [
         id: "trie-check",
         type: "checkpoint",
         title: "Prefix vs word",
-        prompt: "After inserting only 'cat', what should search('ca') and startsWith('ca') return?",
+        prompt:
+          "After inserting only 'cat', what should search('ca') and startsWith('ca') return?",
         hint: "End flag matters.",
         answer: "search False, startsWith True.",
         takeaway: "Prefix existence ≠ word existence.",
@@ -771,7 +865,13 @@ export const EXTRA_LESSONS: Lesson[] = [
         id: "trie-recap",
         type: "recap",
         title: "Recap",
-        blocks: [bullets(["Children map + end flag", "O(L) ops", "Great for shared prefixes"])],
+        blocks: [
+          bullets([
+            "Children map + end flag",
+            "O(L) ops",
+            "Great for shared prefixes",
+          ]),
+        ],
       },
     ],
   },

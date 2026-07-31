@@ -118,8 +118,8 @@ export function buildChatContextPayload(options: {
     snapshot.fileKey !== fileKey ||
     snapshot.provider !== options.provider ||
     snapshot.model !== model ||
-      snapshot.language !== language ||
-      snapshot.localMode !== localMode;
+    snapshot.language !== language ||
+    snapshot.localMode !== localMode;
 
   if (shouldReset) {
     options.cache.snapshots[fileKey] = {
@@ -137,11 +137,11 @@ export function buildChatContextPayload(options: {
       buffer,
       ...finalizeLocalPayload(
         buildPrimaryContext(
-        language,
-        buffer,
-        localMode,
-        options.question,
-        options.history,
+          language,
+          buffer,
+          localMode,
+          options.question,
+          options.history,
         ),
         budgetChars,
       ),
@@ -168,7 +168,10 @@ export function buildChatContextPayload(options: {
   };
 }
 
-function pruneChatContextCache(cache: ChatContextCache, keepFileKey: string): void {
+function pruneChatContextCache(
+  cache: ChatContextCache,
+  keepFileKey: string,
+): void {
   const entries = Object.entries(cache.snapshots);
   if (entries.length <= MAX_FILE_SNAPSHOTS) return;
   entries
@@ -237,7 +240,10 @@ function buildCompactContext(
   const blockLimit = localMode === "fast" ? 1 : 2;
   const chosen = ranked.slice(0, blockLimit);
   const focusedExcerpt = buildFocusedExcerpt(language, buffer, question);
-  const names = chosen.map((block) => block.name).filter(Boolean).join(", ");
+  const names = chosen
+    .map((block) => block.name)
+    .filter(Boolean)
+    .join(", ");
   const summary = buildPythonSummary(lines, blocks);
 
   const parts = [
@@ -294,9 +300,7 @@ function buildCompactContext(
 }
 
 function localReplyStyle(): string {
-  return (
-    "Local reply style: be concise and practical. Prefer 3-6 short bullets or a short paragraph. Avoid repeating the question or dumping long generic explanations. Use code only when it materially helps. Ground every claim in the supplied code. For a dry run, evaluate the actual condition before each claimed iteration and stop immediately when it is false; never invent values, lines, or iterations. If the relevant code is missing, say that rather than guessing.\n\n"
-  );
+  return "Local reply style: be concise and practical. Prefer 3-6 short bullets or a short paragraph. Avoid repeating the question or dumping long generic explanations. Use code only when it materially helps. Ground every claim in the supplied code. For a dry run, evaluate the actual condition before each claimed iteration and stop immediately when it is false; never invent values, lines, or iterations. If the relevant code is missing, say that rather than guessing.\n\n";
 }
 
 type PythonBlock = {
@@ -326,7 +330,11 @@ function collectImportLines(lines: string[]): number[] {
       continue;
     }
     if (out.length > 0) break;
-    if (!trimmed.startsWith("#") && !trimmed.startsWith('"""') && !trimmed.startsWith("'''")) {
+    if (
+      !trimmed.startsWith("#") &&
+      !trimmed.startsWith('"""') &&
+      !trimmed.startsWith("'''")
+    ) {
       break;
     }
   }
@@ -378,7 +386,9 @@ function collectPythonBlocks(lines: string[]): PythonBlock[] {
       start: index + 1,
       end,
       kind,
-      lines: lines.slice(index, end).map((value, offset) => [index + offset + 1, value]),
+      lines: lines
+        .slice(index, end)
+        .map((value, offset) => [index + offset + 1, value]),
     });
   }
   return blocks;
@@ -403,7 +413,10 @@ function rankPythonBlocks(
     }
     return { block, score };
   });
-  scored.sort((left, right) => right.score - left.score || right.block.start - left.block.start);
+  scored.sort(
+    (left, right) =>
+      right.score - left.score || right.block.start - left.block.start,
+  );
   return scored.map((item) => item.block);
 }
 
@@ -449,11 +462,10 @@ function compactOverrideText(
   const head = text.slice(0, Math.max(0, Math.floor(budgetChars * 0.72)));
   const tail = text.slice(-Math.max(0, Math.floor(budgetChars * 0.2)));
   return {
-    text:
-      `${head}\n\n[Context compacted to fit local budget]\n\n${tail}`.slice(
-        0,
-        budgetChars,
-      ),
+    text: `${head}\n\n[Context compacted to fit local budget]\n\n${tail}`.slice(
+      0,
+      budgetChars,
+    ),
     compacted: true,
   };
 }
@@ -509,7 +521,8 @@ function compactPythonBlock(
   for (const entry of lines) {
     const [lineNumber, raw] = entry;
     const trimmed = raw.trim();
-    const tripleCount = (raw.match(/"""/g) ?? []).length + (raw.match(/'''/g) ?? []).length;
+    const tripleCount =
+      (raw.match(/"""/g) ?? []).length + (raw.match(/'''/g) ?? []).length;
     if (tripleCount > 0) {
       if (!inDocstring && trimmed !== '"""' && trimmed !== "'''") {
         out.push([lineNumber, raw]);
@@ -527,10 +540,18 @@ function compactPythonBlock(
 }
 
 function numberLines(lines: Array<[number, string]>): string {
-  return lines.map(([lineNumber, line]) => `${String(lineNumber).padStart(4, " ")}|${line}`).join("\n");
+  return lines
+    .map(
+      ([lineNumber, line]) => `${String(lineNumber).padStart(4, " ")}|${line}`,
+    )
+    .join("\n");
 }
 
-function numberedExcerpt(buffer: string, startLine: number, endLine: number): string {
+function numberedExcerpt(
+  buffer: string,
+  startLine: number,
+  endLine: number,
+): string {
   const lines = buffer.split(/\r?\n/);
   const start = Math.max(1, startLine - EXCERPT_PADDING);
   const end = Math.min(lines.length, endLine + EXCERPT_PADDING);

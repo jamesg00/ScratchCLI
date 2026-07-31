@@ -7,7 +7,10 @@ import {
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { useAiSettingsStore, baseUrlForProvider } from "../../stores/aiSettingsStore";
+import {
+  useAiSettingsStore,
+  baseUrlForProvider,
+} from "../../stores/aiSettingsStore";
 import { useInterviewStore } from "../../stores/interviewStore";
 import { normalizeError } from "../../types/error";
 import { coachChat, type CoachChatMessage } from "../../services/coachChat";
@@ -134,22 +137,54 @@ const COMPANY_ALIASES: Record<string, string> = {
 };
 
 const COACH_SLASH_COMMANDS: SlashCommand[] = [
-  { id: "hint", label: "hint", description: "Insert guided hints into the file" },
+  {
+    id: "hint",
+    label: "hint",
+    description: "Insert guided hints into the file",
+  },
   { id: "review", label: "review", description: "Review the current approach" },
   { id: "submit", label: "submit", description: "Run the local submit gate" },
-  { id: "done list", label: "done list", description: "Show completed problems" },
-  { id: "done reset", label: "done reset", description: "Clear completed problem history" },
+  {
+    id: "done list",
+    label: "done list",
+    description: "Show completed problems",
+  },
+  {
+    id: "done reset",
+    label: "done reset",
+    description: "Clear completed problem history",
+  },
   { id: "progress", label: "progress", description: "Show practice progress" },
   { id: "easy", label: "easy", description: "Fetch an Easy LeetCode problem" },
-  { id: "medium", label: "medium", description: "Fetch a Medium LeetCode problem" },
+  {
+    id: "medium",
+    label: "medium",
+    description: "Fetch a Medium LeetCode problem",
+  },
   { id: "next", label: "next", description: "Fetch the next company problem" },
   { id: "companies", label: "companies", description: "List company filters" },
   { id: "study", label: "study", description: "Open the Study board" },
-  { id: "assistant", label: "assistant", description: "Open the coding assistant" },
-  { id: "invent", label: "invent", description: "Create an original practice problem" },
+  {
+    id: "assistant",
+    label: "assistant",
+    description: "Open the coding assistant",
+  },
+  {
+    id: "invent",
+    label: "invent",
+    description: "Create an original practice problem",
+  },
   { id: "hard", label: "hard", description: "Invent a Hard practice problem" },
-  { id: "solution", label: "solution", description: "Show implementation code only" },
-  { id: "insert", label: "insert", description: "Insert the last coach response" },
+  {
+    id: "solution",
+    label: "solution",
+    description: "Show implementation code only",
+  },
+  {
+    id: "insert",
+    label: "insert",
+    description: "Insert the last coach response",
+  },
   { id: "viz", label: "viz", description: "Open a visualization" },
   { id: "settings", label: "settings", description: "Open AI settings" },
   { id: "clear", label: "clear", description: "Clear this conversation" },
@@ -173,30 +208,6 @@ function CopyCodeButton({ code }: { code: string }) {
       }}
     >
       {copied ? "Copied" : "Copy all"}
-    </button>
-  );
-}
-
-function CopyTextButton({
-  text,
-  label = "Copy",
-}: {
-  text: string;
-  label?: string;
-}) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      className="grok-code-copy"
-      onClick={() => {
-        void navigator.clipboard.writeText(text).then(() => {
-          setCopied(true);
-          window.setTimeout(() => setCopied(false), 1200);
-        });
-      }}
-    >
-      {copied ? "Copied" : label}
     </button>
   );
 }
@@ -767,7 +778,8 @@ export function GrokHelperPanel({
               return;
             }
             if (
-              streamDisplayText.current.length >= streamTargetText.current.length
+              streamDisplayText.current.length >=
+              streamTargetText.current.length
             ) {
               if (streamAnimRaf.current != null) {
                 cancelAnimationFrame(streamAnimRaf.current);
@@ -953,7 +965,12 @@ export function GrokHelperPanel({
       clearConversation();
       return;
     }
-    if (lower === "help" || lower === "?" || lower === "/" || lower === "/help") {
+    if (
+      lower === "help" ||
+      lower === "?" ||
+      lower === "/" ||
+      lower === "/help"
+    ) {
       append(
         "system",
         [
@@ -1065,11 +1082,13 @@ export function GrokHelperPanel({
           );
           return;
         }
-        useLeetCodeStore.getState().saveSubmittedFile(
-          slug,
-          buffer,
-          useSessionStore.getState().getActiveTab()?.path,
-        );
+        useLeetCodeStore
+          .getState()
+          .saveSubmittedFile(
+            slug,
+            buffer,
+            useSessionStore.getState().getActiveTab()?.path,
+          );
         useLeetCodeStore.getState().markDone(slug);
         append(
           "system",
@@ -1142,14 +1161,16 @@ export function GrokHelperPanel({
         try {
           const cwd = useSessionStore.getState().cwd || null;
           const result = await executePython(buffer, "run", cwd);
-          const combined = `${result.stdout ?? ""}\n${result.stderr ?? ""}`.trim();
+          const combined =
+            `${result.stdout ?? ""}\n${result.stderr ?? ""}`.trim();
           if (result.stdout?.trim()) append("output", result.stdout.trimEnd());
           if (result.stderr?.trim()) append("error", result.stderr.trimEnd());
 
           const summary = parseTestOutput(combined);
           const failedLabels =
-            summary?.cases.filter((item) => !item.passed).map((item) => item.label) ??
-            [];
+            summary?.cases
+              .filter((item) => !item.passed)
+              .map((item) => item.label) ?? [];
           const hasFailLine = /\bFAIL\b/i.test(combined);
           // LeetCode official example counts vary (often 2–3). Accept whatever
           // explicit cases are in the file as long as all of them pass.
@@ -1185,18 +1206,21 @@ export function GrokHelperPanel({
 
             const complexity = estimatePythonComplexity(buffer);
             const slug =
-              extractPracticeKey(buffer) ?? useLeetCodeStore.getState().lastSlug;
+              extractPracticeKey(buffer) ??
+              useLeetCodeStore.getState().lastSlug;
             useStudyStore.getState().recordPractice({
               title: title?.trim() || slug || "practice submit",
               path: undefined,
               passed: true,
             });
             if (slug) {
-              useLeetCodeStore.getState().saveSubmittedFile(
-                slug,
-                buffer,
-                useSessionStore.getState().getActiveTab()?.path,
-              );
+              useLeetCodeStore
+                .getState()
+                .saveSubmittedFile(
+                  slug,
+                  buffer,
+                  useSessionStore.getState().getActiveTab()?.path,
+                );
               useLeetCodeStore.getState().markDone(slug);
               append(
                 "system",
@@ -1215,13 +1239,16 @@ export function GrokHelperPanel({
             ? `${summary?.total ?? 0} test case(s); need at least one PASS/FAIL case in the file`
             : summary
               ? `${summary.passed}/${summary.total} passed`
-            : result.exitCode === 0
-              ? "no PASS/FAIL summary parsed"
-              : `process exited with code ${result.exitCode ?? "unknown"}`;
+              : result.exitCode === 0
+                ? "no PASS/FAIL summary parsed"
+                : `process exited with code ${result.exitCode ?? "unknown"}`;
           if (failedLabels.length > 0) {
             append(
               "error",
-              ["Failed test cases:", ...failedLabels.map((label) => `- ${label}`)].join("\n"),
+              [
+                "Failed test cases:",
+                ...failedLabels.map((label) => `- ${label}`),
+              ].join("\n"),
             );
           }
           append(
@@ -1229,7 +1256,8 @@ export function GrokHelperPanel({
             `Submit rejected — ${summaryText}. Not marked done. Asking coach what to fix…`,
           );
           useStudyStore.getState().recordPractice({
-            title: title?.trim() || extractPracticeKey(buffer) || "practice submit",
+            title:
+              title?.trim() || extractPracticeKey(buffer) || "practice submit",
             passed: false,
           });
           await askGrok(
@@ -1304,19 +1332,25 @@ export function GrokHelperPanel({
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    const slashMatches = matchingSlashCommands(COACH_SLASH_COMMANDS, input.slice(1));
+    const slashMatches = matchingSlashCommands(
+      COACH_SLASH_COMMANDS,
+      input.slice(1),
+    );
     if (input.startsWith("/") && slashMatches.length > 0) {
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
         const step = event.key === "ArrowDown" ? 1 : -1;
-        setSlashIndex((current) =>
-          (current + step + slashMatches.length) % slashMatches.length,
+        setSlashIndex(
+          (current) =>
+            (current + step + slashMatches.length) % slashMatches.length,
         );
         return;
       }
       if (event.key === "Enter") {
         event.preventDefault();
-        void runLocal(slashMatches[Math.min(slashIndex, slashMatches.length - 1)]!.id);
+        void runLocal(
+          slashMatches[Math.min(slashIndex, slashMatches.length - 1)]!.id,
+        );
         return;
       }
       if (event.key === "Escape") {
@@ -1398,150 +1432,152 @@ export function GrokHelperPanel({
             className="assistant-model-bar"
             aria-hidden={!modelBarOpen}
           >
-        <div className="assistant-model-bar-row">
-          <label className="assistant-model-primary">
-            <span className="sr-only">Provider</span>
-            <select
-              value={provider}
-              onChange={(event) => {
-                const next = event.target.value as ChatProviderId;
-                setProvider(next);
-                setModel("");
-                ai.setCoachProvider(next);
-                ai.setCoachModel("");
-              }}
-              disabled={busy}
-            >
-              <option value="ollama">Ollama (local)</option>
-              <option value="lmstudio">LM Studio (local)</option>
-              <option value="xai">xAI</option>
-              <option value="openai">OpenAI</option>
-              <option value="anthropic">Anthropic</option>
-            </select>
-          </label>
-          <label className="assistant-model-primary">
-            <span className="sr-only">Model</span>
-            <select
-              value={model}
-              onChange={(event) => {
-                setModel(event.target.value);
-                ai.setCoachModel(event.target.value);
-              }}
-              disabled={busy || models.length === 0}
-            >
-              {models.length === 0 ? (
-                <option value="">No models found</option>
-              ) : (
-                models.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))
-              )}
-            </select>
-          </label>
-        </div>
-        <div className="assistant-model-bar-row">
-          <label className="assistant-model-compact">
-            <span className="sr-only">Context source</span>
-            <select
-              value={ai.localContextSource}
-              onChange={(event) =>
-                ai.setLocalContextSource(
-                  event.target.value as typeof ai.localContextSource,
-                )
-              }
-              disabled={busy}
-              title="File = attach open editor buffer; Chat = conversation only"
-            >
-              <option value="file">File</option>
-              <option value="chat">Chat</option>
-            </select>
-          </label>
-          <label className="assistant-model-compact">
-            <span className="sr-only">Speed</span>
-            <select
-              value={ai.localContextMode}
-              onChange={(event) =>
-                ai.setLocalContextMode(
-                  event.target.value as typeof ai.localContextMode,
-                )
-              }
-              disabled={busy}
-              title="Local model speed mode"
-            >
-              <option value="fast">Fast</option>
-              <option value="balanced">Balanced</option>
-              <option value="full">Full</option>
-            </select>
-          </label>
-          <label className="assistant-model-compact">
-            <span className="sr-only">Company</span>
-            <select
-              value={companySlug}
-              onChange={(event) => {
-                const next = event.target.value;
-                setCompanySlug(next);
-                useLeetCodeStore.getState().setPreferredCompanySlug(next);
-                const hit = companies.find((item) => item.slug === next);
-                if (hit) {
-                  append(
-                    "system",
-                    `Company prep set to ${hit.name} (${hit.questionCount} free problems in the patterns list).`,
-                  );
-                }
-              }}
-              disabled={busy || companies.length === 0}
-            >
-              {companies.length === 0 ? (
-                <option value={companySlug || ""}>No companies found</option>
-              ) : (
-                companies.map((item) => (
-                  <option key={item.slug} value={item.slug}>
-                    {item.name}
-                  </option>
-                ))
-              )}
-            </select>
-          </label>
-          {isLocalProvider(provider) ? (
-            <div className="assistant-model-actions">
-              {usingLocalCompactContext && contextMeta ? (
-                <div
-                  className="context-meter"
-                  title={`Local context ${contextMeta.usedChars}/${contextMeta.budgetChars}${contextMeta.compacted ? " (compacted)" : ""}`}
+            <div className="assistant-model-bar-row">
+              <label className="assistant-model-primary">
+                <span className="sr-only">Provider</span>
+                <select
+                  value={provider}
+                  onChange={(event) => {
+                    const next = event.target.value as ChatProviderId;
+                    setProvider(next);
+                    setModel("");
+                    ai.setCoachProvider(next);
+                    ai.setCoachModel("");
+                  }}
+                  disabled={busy}
                 >
-                  <span
-                    className="context-meter-ring"
-                    style={
-                      {
-                        "--context-ratio": String(contextMeta.ratio),
-                      } as CSSProperties
+                  <option value="ollama">Ollama (local)</option>
+                  <option value="lmstudio">LM Studio (local)</option>
+                  <option value="xai">xAI</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
+                </select>
+              </label>
+              <label className="assistant-model-primary">
+                <span className="sr-only">Model</span>
+                <select
+                  value={model}
+                  onChange={(event) => {
+                    setModel(event.target.value);
+                    ai.setCoachModel(event.target.value);
+                  }}
+                  disabled={busy || models.length === 0}
+                >
+                  {models.length === 0 ? (
+                    <option value="">No models found</option>
+                  ) : (
+                    models.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </label>
+            </div>
+            <div className="assistant-model-bar-row">
+              <label className="assistant-model-compact">
+                <span className="sr-only">Context source</span>
+                <select
+                  value={ai.localContextSource}
+                  onChange={(event) =>
+                    ai.setLocalContextSource(
+                      event.target.value as typeof ai.localContextSource,
+                    )
+                  }
+                  disabled={busy}
+                  title="File = attach open editor buffer; Chat = conversation only"
+                >
+                  <option value="file">File</option>
+                  <option value="chat">Chat</option>
+                </select>
+              </label>
+              <label className="assistant-model-compact">
+                <span className="sr-only">Speed</span>
+                <select
+                  value={ai.localContextMode}
+                  onChange={(event) =>
+                    ai.setLocalContextMode(
+                      event.target.value as typeof ai.localContextMode,
+                    )
+                  }
+                  disabled={busy}
+                  title="Local model speed mode"
+                >
+                  <option value="fast">Fast</option>
+                  <option value="balanced">Balanced</option>
+                  <option value="full">Full</option>
+                </select>
+              </label>
+              <label className="assistant-model-compact">
+                <span className="sr-only">Company</span>
+                <select
+                  value={companySlug}
+                  onChange={(event) => {
+                    const next = event.target.value;
+                    setCompanySlug(next);
+                    useLeetCodeStore.getState().setPreferredCompanySlug(next);
+                    const hit = companies.find((item) => item.slug === next);
+                    if (hit) {
+                      append(
+                        "system",
+                        `Company prep set to ${hit.name} (${hit.questionCount} free problems in the patterns list).`,
+                      );
                     }
-                  />
+                  }}
+                  disabled={busy || companies.length === 0}
+                >
+                  {companies.length === 0 ? (
+                    <option value={companySlug || ""}>
+                      No companies found
+                    </option>
+                  ) : (
+                    companies.map((item) => (
+                      <option key={item.slug} value={item.slug}>
+                        {item.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </label>
+              {isLocalProvider(provider) ? (
+                <div className="assistant-model-actions">
+                  {usingLocalCompactContext && contextMeta ? (
+                    <div
+                      className="context-meter"
+                      title={`Local context ${contextMeta.usedChars}/${contextMeta.budgetChars}${contextMeta.compacted ? " (compacted)" : ""}`}
+                    >
+                      <span
+                        className="context-meter-ring"
+                        style={
+                          {
+                            "--context-ratio": String(contextMeta.ratio),
+                          } as CSSProperties
+                        }
+                      />
+                    </div>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="context-action-btn"
+                    onClick={clearConversation}
+                    disabled={busy}
+                    title="Clear this conversation (all chat text + memory)"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    className="context-action-btn"
+                    onClick={compactLocalSession}
+                    disabled={busy}
+                    title="Compact local session context"
+                  >
+                    Compact
+                  </button>
                 </div>
               ) : null}
-              <button
-                type="button"
-                className="context-action-btn"
-                onClick={clearConversation}
-                disabled={busy}
-                title="Clear this conversation (all chat text + memory)"
-              >
-                Clear
-              </button>
-              <button
-                type="button"
-                className="context-action-btn"
-                onClick={compactLocalSession}
-                disabled={busy}
-                title="Compact local session context"
-              >
-                Compact
-              </button>
             </div>
-          ) : null}
-        </div>
           </div>
         </div>
       </div>
@@ -1562,55 +1598,60 @@ export function GrokHelperPanel({
           ) : line.kind === "done-list" ? (
             <div key={line.id} className="done-list-output">
               <strong>Finished problems</strong>
-              <span className="done-list-hint">Click a problem to reopen it</span>
+              <span className="done-list-hint">
+                Click a problem to reopen it
+              </span>
               {(line.doneSlugs ?? []).map((slug) => {
-                  const item = slug
-                    .split("-")
-                    .filter(Boolean)
-                    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-                    .join(" ");
-                  return (
-                    <button
-                      key={`${line.id}-${slug}`}
-                      type="button"
-                      className="done-list-item"
-                      title="Open this practice file"
-                      onClick={() => {
-                        void (async () => {
-                          try {
-                            if (onOpenDoneProblem) {
-                              await onOpenDoneProblem(slug);
-                              append("system", `Opened ${item}.`);
-                              return;
-                            }
-                            const store = useLeetCodeStore.getState();
-                            const path = store.submittedPaths[slug];
-                            const code = store.submittedFiles[slug];
-                            if (path && onOpenSubmittedFile) {
-                              onOpenSubmittedFile(path);
-                              append("system", `Opened ${item}.`);
-                              return;
-                            }
-                            if (code && onApplyBuffer) {
-                              onApplyBuffer(code);
-                              append("system", `Restored ${item} into the editor.`);
-                              return;
-                            }
-                            append(
-                              "error",
-                              `Couldn't open ${item}. Open the file manually, then type done again.`,
-                            );
-                          } catch (err) {
-                            append("error", normalizeError(err).message);
+                const item = slug
+                  .split("-")
+                  .filter(Boolean)
+                  .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+                  .join(" ");
+                return (
+                  <button
+                    key={`${line.id}-${slug}`}
+                    type="button"
+                    className="done-list-item"
+                    title="Open this practice file"
+                    onClick={() => {
+                      void (async () => {
+                        try {
+                          if (onOpenDoneProblem) {
+                            await onOpenDoneProblem(slug);
+                            append("system", `Opened ${item}.`);
+                            return;
                           }
-                        })();
-                      }}
-                    >
-                      <span aria-hidden>✅</span>
-                      <span className="done-list-item-label">{item}</span>
-                    </button>
-                  );
-                })}
+                          const store = useLeetCodeStore.getState();
+                          const path = store.submittedPaths[slug];
+                          const code = store.submittedFiles[slug];
+                          if (path && onOpenSubmittedFile) {
+                            onOpenSubmittedFile(path);
+                            append("system", `Opened ${item}.`);
+                            return;
+                          }
+                          if (code && onApplyBuffer) {
+                            onApplyBuffer(code);
+                            append(
+                              "system",
+                              `Restored ${item} into the editor.`,
+                            );
+                            return;
+                          }
+                          append(
+                            "error",
+                            `Couldn't open ${item}. Open the file manually, then type done again.`,
+                          );
+                        } catch (err) {
+                          append("error", normalizeError(err).message);
+                        }
+                      })();
+                    }}
+                  >
+                    <span aria-hidden>✅</span>
+                    <span className="done-list-item-label">{item}</span>
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <pre key={line.id} data-kind={line.kind}>
@@ -1643,11 +1684,7 @@ export function GrokHelperPanel({
           spellCheck={false}
           autoComplete="off"
           aria-label="Ask DSA coach"
-          placeholder={
-            busy
-              ? "Streaming…"
-              : "/ for Commands"
-          }
+          placeholder={busy ? "Streaming…" : "/ for Commands"}
         />
       </form>
     </section>

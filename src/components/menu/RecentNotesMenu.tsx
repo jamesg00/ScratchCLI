@@ -157,10 +157,7 @@ export function RecentNotesMenu({
           <i />
         </span>
       </button>
-      <div
-        className="recent-notes-shell"
-        data-open={open ? "1" : "0"}
-      >
+      <div className="recent-notes-shell" data-open={open ? "1" : "0"}>
         <div className="recent-notes-clip">
           <div
             id="app-menu-panel"
@@ -230,7 +227,10 @@ export function RecentNotesMenu({
                       tabIndex={open ? 0 : -1}
                       onClick={() => run(() => onOpen(note.id))}
                     >
-                      <span className="recent-notes-swatch" aria-hidden="true" />
+                      <span
+                        className="recent-notes-swatch"
+                        aria-hidden="true"
+                      />
                       <span className="recent-notes-body">
                         <span className="recent-notes-title-row">
                           <span className="recent-notes-title">

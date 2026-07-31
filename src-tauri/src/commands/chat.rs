@@ -693,12 +693,12 @@ When an editor buffer / open file is provided, that open file is what the user i
                 .to_string();
             let buffer = buffer.as_deref().unwrap_or("").trim();
             if !buffer.is_empty() {
-            user_content.push_str(&format!(
-                "Editor language: {language}\n\
+                user_content.push_str(&format!(
+                    "Editor language: {language}\n\
 Lines are numbered (N|code) for reference.\n\n\
 Editor buffer:\n```{language}\n{}\n```\n\n",
-                numbered_buffer(&truncate_buffer(buffer))
-            ));
+                    numbered_buffer(&truncate_buffer(buffer))
+                ));
             }
         }
     }
@@ -715,7 +715,14 @@ Editor buffer:\n```{language}\n{}\n```\n\n",
     };
 
     run_chat(
-        provider, model, system, messages, api_key, base_url, temperature, on_token,
+        provider,
+        model,
+        system,
+        messages,
+        api_key,
+        base_url,
+        temperature,
+        on_token,
     )
     .await
 }

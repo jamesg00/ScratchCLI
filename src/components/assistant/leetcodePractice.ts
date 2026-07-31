@@ -197,16 +197,9 @@ function findMethodName(code: string): string | null {
   return methods.find((m) => !skip.has(m)) ?? null;
 }
 
-function findParamNames(code: string, method: string): string[] {
-  return findParamAnnotations(code, method).map((p) => p.name);
-}
-
 type ParamAnn = { name: string; type: string };
 
-function findParamAnnotations(
-  code: string,
-  method: string,
-): ParamAnn[] {
+function findParamAnnotations(code: string, method: string): ParamAnn[] {
   const re = new RegExp(`def\\s+${method}\\s*\\(([^)]*)\\)`, "m");
   const m = code.match(re);
   if (!m) return [];

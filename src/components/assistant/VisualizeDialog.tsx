@@ -224,7 +224,9 @@ export function VisualizeDialog({
     ? VIZ_KIND_LABELS[plan.kind]
     : VIZ_KIND_LABELS[kind];
   const title =
-    view === "topics" ? "Visualize topics" : plan.title || kindLabel || "Visualize";
+    view === "topics"
+      ? "Visualize topics"
+      : plan.title || kindLabel || "Visualize";
   const modeTag =
     view === "topics"
       ? " · pick a pattern"

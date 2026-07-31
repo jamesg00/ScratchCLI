@@ -72,7 +72,8 @@ describe("buildLeetCodeScaffold", () => {
       topicTags: ["Array", "Hash Table"],
       url: "https://leetcode.com/problems/two-sum/",
     };
-    const { file, warnings, officialCaseCount } = buildLeetCodeScaffold(problem);
+    const { file, warnings, officialCaseCount } =
+      buildLeetCodeScaffold(problem);
     expect(
       warnings.some((w) => /at least 3|minimum 4|need at least 3/i.test(w)),
     ).toBe(false);

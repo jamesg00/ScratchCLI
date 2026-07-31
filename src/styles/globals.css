@@ -966,7 +966,9 @@ select option {
   background: currentColor;
   opacity: 0.92;
   transform-origin: center;
-  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease;
+  transition:
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.18s ease;
 }
 
 .recent-notes-menu[data-open="1"] .recent-notes-bars > i:nth-child(1) {
@@ -3434,7 +3436,8 @@ html[data-grok-resizing="1"] .grok-resize-handle::after {
   height: 26px;
   padding: 0 8px;
   color: inherit;
-  border: 1px solid color-mix(in srgb, var(--custom-fg, #ffffff) 18%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--custom-fg, #ffffff) 18%, transparent);
   background: color-mix(in srgb, var(--custom-bg) 70%, transparent);
   border-radius: 4px;
   font: inherit;
@@ -3857,12 +3860,22 @@ html[data-grok-resizing="1"] .grok-resize-handle::after {
   text-align: left;
   cursor: pointer;
   opacity: 1;
-  transition: background 0.14s ease, color 0.14s ease;
+  transition:
+    background 0.14s ease,
+    color 0.14s ease,
+    transform 0.14s ease;
 }
 
-.done-list-output button.done-list-item:hover {
+.done-list-output button.done-list-item:hover,
+.done-list-output button.done-list-item:focus-visible {
   color: #78ef9b;
-  background: color-mix(in srgb, #78ef9b 16%, transparent);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, #78ef9b 20%, transparent),
+    color-mix(in srgb, #78ef9b 7%, transparent)
+  );
+  transform: translateX(2px);
+  outline: none;
 }
 
 .done-list-output button.done-list-item:active {
@@ -4079,16 +4092,8 @@ html[data-grok-resizing="1"] .grok-resize-handle::after {
 /* Comet streak + nebula glow layer */
 .app-shell[data-theme="comet"]::after {
   background:
-    radial-gradient(
-      56% 52% at 22% 70%,
-      rgb(74 132 255 / 0.1),
-      transparent 70%
-    ),
-    radial-gradient(
-      52% 48% at 79% 34%,
-      rgb(86 172 255 / 0.08),
-      transparent 72%
-    );
+    radial-gradient(56% 52% at 22% 70%, rgb(74 132 255 / 0.1), transparent 70%),
+    radial-gradient(52% 48% at 79% 34%, rgb(86 172 255 / 0.08), transparent 72%);
   background-size: auto, auto;
   background-position: center, center;
   opacity: 0.3;

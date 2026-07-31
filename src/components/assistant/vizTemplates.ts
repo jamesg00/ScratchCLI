@@ -51,7 +51,9 @@ export function detectVizKind(buffer: string): VizKind {
   ) {
     return "hash_map";
   }
-  if (/heapq|heappush|heappop|priority.?queue|\bheap\b|kth.?largest/.test(text)) {
+  if (
+    /heapq|heappush|heappop|priority.?queue|\bheap\b|kth.?largest/.test(text)
+  ) {
     return "heap";
   }
   if (/\btrie\b|startswith|prefix.?tree|autocomplete/.test(text)) {

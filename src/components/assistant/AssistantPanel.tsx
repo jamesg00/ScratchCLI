@@ -57,7 +57,11 @@ type Props = {
 
 const ASSISTANT_SLASH_COMMANDS: SlashCommand[] = [
   { id: "clear", label: "clear", description: "Clear this conversation" },
-  { id: "context", label: "context", description: "Clear file/chat context memory only" },
+  {
+    id: "context",
+    label: "context",
+    description: "Clear file/chat context memory only",
+  },
   { id: "settings", label: "settings", description: "Open AI settings" },
   { id: "close", label: "close", description: "Close Assistant" },
 ];
@@ -153,7 +157,9 @@ function AssistantOutput({
           <div key={`c-${index}`} className="grok-code-block">
             <div className="grok-code-toolbar">
               <span className="grok-code-label">{segment.lang || "code"}</span>
-              {segment.code.trim() ? <CopyCodeButton code={segment.code} /> : null}
+              {segment.code.trim() ? (
+                <CopyCodeButton code={segment.code} />
+              ) : null}
             </div>
             <pre className="grok-code">
               {isPython ? renderPythonCode(segment.code) : segment.code}
@@ -587,14 +593,17 @@ export function AssistantPanel({
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
         const step = event.key === "ArrowDown" ? 1 : -1;
-        setSlashIndex((current) =>
-          (current + step + slashMatches.length) % slashMatches.length,
+        setSlashIndex(
+          (current) =>
+            (current + step + slashMatches.length) % slashMatches.length,
         );
         return;
       }
       if (event.key === "Enter") {
         event.preventDefault();
-        runSlashCommand(slashMatches[Math.min(slashIndex, slashMatches.length - 1)]!);
+        runSlashCommand(
+          slashMatches[Math.min(slashIndex, slashMatches.length - 1)]!,
+        );
         return;
       }
       if (event.key === "Escape") {
@@ -657,138 +666,138 @@ export function AssistantPanel({
             className="assistant-model-bar"
             aria-hidden={!modelBarOpen}
           >
-        <div className="assistant-model-bar-row">
-          <label className="assistant-model-primary">
-            <span className="sr-only">Provider</span>
-            <select
-              value={provider}
-              onChange={(event) => {
-                const next = event.target.value as ChatProviderId;
-                setProvider(next);
-                setModel("");
-              }}
-              disabled={busy}
-            >
-              <option value="ollama">Ollama (local)</option>
-              <option value="lmstudio">LM Studio (local)</option>
-              <option value="xai">xAI</option>
-              <option value="openai">OpenAI</option>
-              <option value="anthropic">Anthropic</option>
-            </select>
-          </label>
-          <label className="assistant-model-primary">
-            <span className="sr-only">Model</span>
-            <select
-              value={model}
-              onChange={(event) => setModel(event.target.value)}
-              disabled={busy || models.length === 0}
-            >
-              {models.length === 0 ? (
-                <option value="">No models found</option>
-              ) : (
-                models.map((id) => (
-                  <option key={id} value={id}>
-                    {id}
-                  </option>
-                ))
-              )}
-            </select>
-          </label>
-          {cwd ? (
-            <span className="assistant-cwd" title={cwd}>
-              {cwd.replace(/^.*[\\/]/, "")}
-            </span>
-          ) : null}
-        </div>
-        <div className="assistant-model-bar-row">
-          <label className="assistant-model-compact">
-            <span className="sr-only">Context source</span>
-            <select
-              value={ai.localContextSource}
-              onChange={(event) =>
-                ai.setLocalContextSource(
-                  event.target.value as typeof ai.localContextSource,
-                )
-              }
-              disabled={busy}
-              title="File = attach open editor buffer; Chat = conversation only"
-            >
-              <option value="file">File</option>
-              <option value="chat">Chat</option>
-            </select>
-          </label>
-          <label className="assistant-model-compact">
-            <span className="sr-only">Speed</span>
-            <select
-              value={ai.localContextMode}
-              onChange={(event) =>
-                ai.setLocalContextMode(
-                  event.target.value as typeof ai.localContextMode,
-                )
-              }
-              disabled={busy}
-              title="Local model speed mode"
-            >
-              <option value="fast">Fast</option>
-              <option value="balanced">Balanced</option>
-              <option value="full">Full</option>
-            </select>
-          </label>
-          <label className="assistant-model-compact">
-            <span className="sr-only">Stream</span>
-            <select
-              value={ai.localStreamMode}
-              onChange={(event) =>
-                ai.setLocalStreamMode(
-                  event.target.value as typeof ai.localStreamMode,
-                )
-              }
-              disabled={busy}
-              title="Local stream style"
-            >
-              <option value="fast">Fast</option>
-              <option value="smooth">Smooth</option>
-              <option value="silky">Silky</option>
-            </select>
-          </label>
-          {isLocalProvider(provider) ? (
-            <div className="assistant-model-actions">
-              {usingLocalCompactContext && contextMeta ? (
-                <div
-                  className="context-meter"
-                  title={`Local context ${contextMeta.usedChars}/${contextMeta.budgetChars}${contextMeta.compacted ? " (compacted)" : ""}`}
+            <div className="assistant-model-bar-row">
+              <label className="assistant-model-primary">
+                <span className="sr-only">Provider</span>
+                <select
+                  value={provider}
+                  onChange={(event) => {
+                    const next = event.target.value as ChatProviderId;
+                    setProvider(next);
+                    setModel("");
+                  }}
+                  disabled={busy}
                 >
-                  <span
-                    className="context-meter-ring"
-                    style={
-                      {
-                        "--context-ratio": String(contextMeta.ratio),
-                      } as CSSProperties
-                    }
-                  />
+                  <option value="ollama">Ollama (local)</option>
+                  <option value="lmstudio">LM Studio (local)</option>
+                  <option value="xai">xAI</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
+                </select>
+              </label>
+              <label className="assistant-model-primary">
+                <span className="sr-only">Model</span>
+                <select
+                  value={model}
+                  onChange={(event) => setModel(event.target.value)}
+                  disabled={busy || models.length === 0}
+                >
+                  {models.length === 0 ? (
+                    <option value="">No models found</option>
+                  ) : (
+                    models.map((id) => (
+                      <option key={id} value={id}>
+                        {id}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </label>
+              {cwd ? (
+                <span className="assistant-cwd" title={cwd}>
+                  {cwd.replace(/^.*[\\/]/, "")}
+                </span>
+              ) : null}
+            </div>
+            <div className="assistant-model-bar-row">
+              <label className="assistant-model-compact">
+                <span className="sr-only">Context source</span>
+                <select
+                  value={ai.localContextSource}
+                  onChange={(event) =>
+                    ai.setLocalContextSource(
+                      event.target.value as typeof ai.localContextSource,
+                    )
+                  }
+                  disabled={busy}
+                  title="File = attach open editor buffer; Chat = conversation only"
+                >
+                  <option value="file">File</option>
+                  <option value="chat">Chat</option>
+                </select>
+              </label>
+              <label className="assistant-model-compact">
+                <span className="sr-only">Speed</span>
+                <select
+                  value={ai.localContextMode}
+                  onChange={(event) =>
+                    ai.setLocalContextMode(
+                      event.target.value as typeof ai.localContextMode,
+                    )
+                  }
+                  disabled={busy}
+                  title="Local model speed mode"
+                >
+                  <option value="fast">Fast</option>
+                  <option value="balanced">Balanced</option>
+                  <option value="full">Full</option>
+                </select>
+              </label>
+              <label className="assistant-model-compact">
+                <span className="sr-only">Stream</span>
+                <select
+                  value={ai.localStreamMode}
+                  onChange={(event) =>
+                    ai.setLocalStreamMode(
+                      event.target.value as typeof ai.localStreamMode,
+                    )
+                  }
+                  disabled={busy}
+                  title="Local stream style"
+                >
+                  <option value="fast">Fast</option>
+                  <option value="smooth">Smooth</option>
+                  <option value="silky">Silky</option>
+                </select>
+              </label>
+              {isLocalProvider(provider) ? (
+                <div className="assistant-model-actions">
+                  {usingLocalCompactContext && contextMeta ? (
+                    <div
+                      className="context-meter"
+                      title={`Local context ${contextMeta.usedChars}/${contextMeta.budgetChars}${contextMeta.compacted ? " (compacted)" : ""}`}
+                    >
+                      <span
+                        className="context-meter-ring"
+                        style={
+                          {
+                            "--context-ratio": String(contextMeta.ratio),
+                          } as CSSProperties
+                        }
+                      />
+                    </div>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="context-action-btn"
+                    onClick={clearConversation}
+                    disabled={busy}
+                    title="Clear this conversation (all chat text + memory)"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    className="context-action-btn"
+                    onClick={compactLocalSession}
+                    disabled={busy}
+                    title="Compact local session context"
+                  >
+                    Compact
+                  </button>
                 </div>
               ) : null}
-              <button
-                type="button"
-                className="context-action-btn"
-                onClick={clearConversation}
-                disabled={busy}
-                title="Clear this conversation (all chat text + memory)"
-              >
-                Clear
-              </button>
-              <button
-                type="button"
-                className="context-action-btn"
-                onClick={compactLocalSession}
-                disabled={busy}
-                title="Compact local session context"
-              >
-                Compact
-              </button>
             </div>
-          ) : null}
-        </div>
           </div>
         </div>
       </div>

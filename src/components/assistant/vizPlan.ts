@@ -176,13 +176,18 @@ function parseStep(value: unknown): VizStep | null {
   };
 }
 
-function parseStructurePayload(value: unknown): VizStructurePayload | undefined {
+function parseStructurePayload(
+  value: unknown,
+): VizStructurePayload | undefined {
   const record = asRecord(value);
   if (!record) return undefined;
 
   const kindRaw = record.kind;
   if (typeof kindRaw !== "string") return undefined;
-  const kind = kindRaw.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const kind = kindRaw
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
   const allowed: Record<string, VizStructureKind> = {
     tree: "tree",
     graph: "graph",
@@ -206,15 +211,21 @@ function parseStructurePayload(value: unknown): VizStructurePayload | undefined 
 
     const labelRaw = nr.label ?? nr.text ?? nr.value;
     const label =
-      labelRaw === undefined ? undefined : labelRaw === null ? "null" : String(labelRaw);
+      labelRaw === undefined
+        ? undefined
+        : labelRaw === null
+          ? "null"
+          : String(labelRaw);
 
     const stateRaw = nr.state ?? nr.status;
     const state = typeof stateRaw === "string" ? stateRaw : undefined;
 
     const xRaw = nr.x ?? nr.cx;
     const yRaw = nr.y ?? nr.cy;
-    const x = typeof xRaw === "number" && Number.isFinite(xRaw) ? xRaw : undefined;
-    const y = typeof yRaw === "number" && Number.isFinite(yRaw) ? yRaw : undefined;
+    const x =
+      typeof xRaw === "number" && Number.isFinite(xRaw) ? xRaw : undefined;
+    const y =
+      typeof yRaw === "number" && Number.isFinite(yRaw) ? yRaw : undefined;
 
     nodes.push({
       id,

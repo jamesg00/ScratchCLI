@@ -20,7 +20,11 @@ export function estimatePythonComplexity(source: string): ComplexityEstimate {
       loopIndents.push(indent);
       maxLoopDepth = Math.max(maxLoopDepth, loopIndents.length);
     }
-    if (/\b(set|dict|defaultdict|Counter|deque)\s*\(|\[[^\]]*for\b|\.append\(/.test(code)) {
+    if (
+      /\b(set|dict|defaultdict|Counter|deque)\s*\(|\[[^\]]*for\b|\.append\(/.test(
+        code,
+      )
+    ) {
       usesLinearStorage = true;
     }
   }

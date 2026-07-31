@@ -426,7 +426,10 @@ export const useSessionStore = create<SessionState>()(
             ),
             splitCount: nextSplitCount,
             paneSizes: equalSizes(nextSplitCount),
-            focusedPaneIndex: Math.min(state.focusedPaneIndex, nextSplitCount - 1),
+            focusedPaneIndex: Math.min(
+              state.focusedPaneIndex,
+              nextSplitCount - 1,
+            ),
             nanoPrompt: null,
           };
         });

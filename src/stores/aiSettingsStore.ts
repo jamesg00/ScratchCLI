@@ -21,7 +21,9 @@ type AiSettingsState = AiProviderPrefs & {
   setAssistantModel: (model: string) => void;
   setCoachProvider: (provider: ChatProviderId) => void;
   setCoachModel: (model: string) => void;
-  setLocalContextSource: (source: AiProviderPrefs["localContextSource"]) => void;
+  setLocalContextSource: (
+    source: AiProviderPrefs["localContextSource"],
+  ) => void;
   setLocalContextMode: (mode: AiProviderPrefs["localContextMode"]) => void;
   setLocalStreamMode: (mode: AiProviderPrefs["localStreamMode"]) => void;
 };
@@ -44,7 +46,8 @@ export const useAiSettingsStore = create<AiSettingsState>()(
       setAssistantModel: (assistantModel) => set({ assistantModel }),
       setCoachProvider: (coachProvider) => set({ coachProvider }),
       setCoachModel: (coachModel) => set({ coachModel }),
-      setLocalContextSource: (localContextSource) => set({ localContextSource }),
+      setLocalContextSource: (localContextSource) =>
+        set({ localContextSource }),
       setLocalContextMode: (localContextMode) => set({ localContextMode }),
       setLocalStreamMode: (localStreamMode) => set({ localStreamMode }),
     }),
@@ -58,7 +61,7 @@ export const useAiSettingsStore = create<AiSettingsState>()(
             ...state,
             coachProvider: state.coachProvider ?? "ollama",
             coachModel:
-              state.coachProvider === "xai" ? state.coachModel ?? "" : "",
+              state.coachProvider === "xai" ? (state.coachModel ?? "") : "",
             localContextSource: "file",
             localContextMode: "fast",
             localStreamMode: "smooth",

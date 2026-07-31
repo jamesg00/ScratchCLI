@@ -19,7 +19,12 @@ export type LessonTopic = {
 export type LessonCopyBlock =
   | { kind: "paragraph"; text: string }
   | { kind: "bullets"; title?: string; items: string[] }
-  | { kind: "callout"; tone: "signal" | "pitfall" | "strategy"; title: string; text: string };
+  | {
+      kind: "callout";
+      tone: "signal" | "pitfall" | "strategy";
+      title: string;
+      text: string;
+    };
 
 type LessonNarrativeStep = {
   id: string;
@@ -28,7 +33,9 @@ type LessonNarrativeStep = {
 };
 
 export type LessonStep =
-  | ({ type: "concept" | "worked_example" | "strategy" | "pitfall" | "recap" } & LessonNarrativeStep)
+  | ({
+      type: "concept" | "worked_example" | "strategy" | "pitfall" | "recap";
+    } & LessonNarrativeStep)
   | {
       id: string;
       type: "viz";
@@ -86,31 +93,36 @@ export const LESSON_TOPICS: LessonTopic[] = [
   {
     id: "arrays_two_pointers",
     title: "Two pointers (arrays)",
-    description: "Use ordering and invariants to discard impossible ranges quickly.",
+    description:
+      "Use ordering and invariants to discard impossible ranges quickly.",
     lessonIds: ["lesson-two-pointers-deep"],
   },
   {
     id: "strings_sliding_window",
     title: "Sliding window (strings)",
-    description: "Maintain a valid contiguous window instead of recomputing every substring.",
+    description:
+      "Maintain a valid contiguous window instead of recomputing every substring.",
     lessonIds: ["lesson-sliding-window-deep", "lesson-sliding-window-advanced"],
   },
   {
     id: "hashing_frequency",
     title: "Hashing + frequency",
-    description: "Count once, query fast, and turn repeated scans into O(1) lookups.",
+    description:
+      "Count once, query fast, and turn repeated scans into O(1) lookups.",
     lessonIds: ["lesson-hashing-deep"],
   },
   {
     id: "stack_queue",
     title: "Stack / queue fundamentals",
-    description: "Choose LIFO vs FIFO based on the order the problem needs you to remember.",
+    description:
+      "Choose LIFO vs FIFO based on the order the problem needs you to remember.",
     lessonIds: ["lesson-stack-queue-deep"],
   },
   {
     id: "tree_traversal",
     title: "Tree traversal",
-    description: "Learn how BFS/DFS order, state, and visited rules shape correct tree walks.",
+    description:
+      "Learn how BFS/DFS order, state, and visited rules shape correct tree walks.",
     lessonIds: ["lesson-tree-graph-deep"],
   },
   ...EXTRA_LESSON_TOPICS,
@@ -137,7 +149,8 @@ export const LESSONS: Lesson[] = [
     id: "lesson-two-pointers-deep",
     topicId: "arrays_two_pointers",
     title: "Two pointers — reason from both ends",
-    blurb: "Build the invariant, choose the discard rule, and stop guessing pointer moves.",
+    blurb:
+      "Build the invariant, choose the discard rule, and stop guessing pointer moves.",
     estimatedMinutes: 28,
     learningGoals: [
       "Recognize when ordering makes a left/right sweep valid.",
@@ -168,11 +181,14 @@ export const LESSONS: Lesson[] = [
           p(
             "Two pointers is not 'put one index on the left and one on the right and hope it works.' It is a proof technique. You use it when the input has an ordering, and that ordering lets you discard part of the search space after each comparison.",
           ),
-          bullets([
-            "If the sum is too small in a sorted array, moving the left pointer right is the only move that can increase the sum.",
-            "If the sum is too large, moving the right pointer left is the only move that can decrease the sum.",
-            "Because each move removes impossible candidates forever, the algorithm stays linear.",
-          ], "Core idea"),
+          bullets(
+            [
+              "If the sum is too small in a sorted array, moving the left pointer right is the only move that can increase the sum.",
+              "If the sum is too large, moving the right pointer left is the only move that can decrease the sum.",
+              "Because each move removes impossible candidates forever, the algorithm stays linear.",
+            ],
+            "Core idea",
+          ),
           callout(
             "signal",
             "Pattern signal",
@@ -188,11 +204,14 @@ export const LESSONS: Lesson[] = [
           p(
             "For pair-sum style problems, the invariant is: the answer, if it exists, is still somewhere inside the current interval [L, R]. Every pointer move must preserve that statement.",
           ),
-          bullets([
-            "Start by naming what remains possible.",
-            "Then ask: what evidence makes one boundary impossible?",
-            "Only move a pointer when you can explain what you just ruled out.",
-          ], "Mental checklist"),
+          bullets(
+            [
+              "Start by naming what remains possible.",
+              "Then ask: what evidence makes one boundary impossible?",
+              "Only move a pointer when you can explain what you just ruled out.",
+            ],
+            "Mental checklist",
+          ),
           callout(
             "strategy",
             "Interview move",
@@ -211,11 +230,14 @@ export const LESSONS: Lesson[] = [
           p(
             "At L = 1, R = 4 the sum becomes 10, so the pair is found. Notice what made the method reliable: we were never 'trying both options.' The ordering let us rule one option out.",
           ),
-          bullets([
-            "Too small -> move L right",
-            "Too large -> move R left",
-            "Equal -> record answer or continue depending on the problem",
-          ], "Decision table"),
+          bullets(
+            [
+              "Too small -> move L right",
+              "Too large -> move R left",
+              "Equal -> record answer or continue depending on the problem",
+            ],
+            "Decision table",
+          ),
         ],
       },
       {
@@ -250,8 +272,7 @@ export const LESSONS: Lesson[] = [
         title: "Checkpoint: justify the move",
         prompt:
           "You are at nums[L] + nums[R] < target in a sorted array. Why is moving R left a bad move?",
-        hint:
-          "Think about whether decreasing the right value could ever help you reach a larger target sum.",
+        hint: "Think about whether decreasing the right value could ever help you reach a larger target sum.",
         answer:
           "Moving R left would only make the sum even smaller, so it cannot fix a sum that is already too small. The sorted order tells us the only candidate move is increasing L.",
         takeaway:
@@ -265,11 +286,14 @@ export const LESSONS: Lesson[] = [
           p(
             "Once you understand the discard rule, the same structure shows up in container-with-most-water, removing duplicates in-place, partition-like scans, and some palindrome / string edge sweeps.",
           ),
-          bullets([
-            "Ask what each pointer means.",
-            "Ask what condition makes a side hopeless.",
-            "Ask whether the output is one answer, all answers, or an optimized score.",
-          ], "Transfer questions"),
+          bullets(
+            [
+              "Ask what each pointer means.",
+              "Ask what condition makes a side hopeless.",
+              "Ask whether the output is one answer, all answers, or an optimized score.",
+            ],
+            "Transfer questions",
+          ),
         ],
       },
       {
@@ -303,7 +327,8 @@ export const LESSONS: Lesson[] = [
     id: "lesson-sliding-window-deep",
     topicId: "strings_sliding_window",
     title: "Sliding window — maintain validity, not brute force",
-    blurb: "Use a live window invariant so contiguous-range problems stop feeling like nested-loop problems.",
+    blurb:
+      "Use a live window invariant so contiguous-range problems stop feeling like nested-loop problems.",
     estimatedMinutes: 30,
     learningGoals: [
       "Recognize the difference between fixed and variable windows.",
@@ -411,12 +436,10 @@ export const LESSONS: Lesson[] = [
         title: "Checkpoint: what forces L to move?",
         prompt:
           "In a variable-size window problem, should you move L on every iteration of R? Why or why not?",
-        hint:
-          "Think about what L is responsible for. Does it move because time passed, or because the window became invalid?",
+        hint: "Think about what L is responsible for. Does it move because time passed, or because the window became invalid?",
         answer:
           "No. L only moves when the invariant is broken or when shrinking helps optimize the current valid window. If the window is still valid, moving L early can throw away useful candidates.",
-        takeaway:
-          "The left pointer is a repair tool, not a metronome.",
+        takeaway: "The left pointer is a repair tool, not a metronome.",
       },
       {
         id: "sw-7",
@@ -468,7 +491,8 @@ export const LESSONS: Lesson[] = [
     id: "lesson-hashing-deep",
     topicId: "hashing_frequency",
     title: "Hashing — remember once, answer fast",
-    blurb: "Turn repeated searching into constant-time lookup by deciding exactly what to store.",
+    blurb:
+      "Turn repeated searching into constant-time lookup by deciding exactly what to store.",
     estimatedMinutes: 26,
     learningGoals: [
       "Use frequency maps and complement maps intentionally.",
@@ -570,8 +594,7 @@ export const LESSONS: Lesson[] = [
         title: "Checkpoint: why two passes?",
         prompt:
           "Why is a second left-to-right pass still useful after you already counted every character?",
-        hint:
-          "Frequency answers uniqueness, but what answers 'first'?",
+        hint: "Frequency answers uniqueness, but what answers 'first'?",
         answer:
           "The map tells you whether a character is unique, but it does not automatically preserve the original left-to-right answer requirement. The second pass restores the ordering constraint cheaply.",
         takeaway:
@@ -623,7 +646,8 @@ export const LESSONS: Lesson[] = [
     id: "lesson-stack-queue-deep",
     topicId: "stack_queue",
     title: "Stacks and queues — preserve the right order",
-    blurb: "Understand why LIFO or FIFO is required before you choose the structure.",
+    blurb:
+      "Understand why LIFO or FIFO is required before you choose the structure.",
     estimatedMinutes: 27,
     learningGoals: [
       "Choose stack vs queue based on required processing order.",
@@ -721,8 +745,7 @@ export const LESSONS: Lesson[] = [
         title: "Checkpoint: top vs front",
         prompt:
           "Why does valid-parentheses need a stack top instead of a queue front?",
-        hint:
-          "Ask which unmatched opening bracket must be closed first.",
+        hint: "Ask which unmatched opening bracket must be closed first.",
         answer:
           "The correct closer must match the most recent unmatched opener, not the oldest one. A queue would expose the oldest pending token, which is the wrong dependency order for nested structure.",
         takeaway:
@@ -772,7 +795,8 @@ export const LESSONS: Lesson[] = [
     id: "lesson-tree-graph-deep",
     topicId: "tree_traversal",
     title: "Tree and graph traversal — order, frontier, visited",
-    blurb: "Understand BFS vs DFS as search disciplines, not just memorized templates.",
+    blurb:
+      "Understand BFS vs DFS as search disciplines, not just memorized templates.",
     estimatedMinutes: 34,
     learningGoals: [
       "Explain why BFS and DFS produce different exploration orders.",
@@ -882,8 +906,7 @@ export const LESSONS: Lesson[] = [
         title: "Checkpoint: why BFS finds shortest unweighted distance",
         prompt:
           "Why can BFS return the shortest number of edges to a target the first time the target is popped or discovered?",
-        hint:
-          "Think about what order the queue guarantees for nodes at distance d, d+1, d+2, ...",
+        hint: "Think about what order the queue guarantees for nodes at distance d, d+1, d+2, ...",
         answer:
           "Because BFS processes nodes in nondecreasing distance order. All nodes at distance d are explored before any node at distance d+1, so the first time you reach the target, no shorter unweighted path could still be waiting.",
         takeaway:
@@ -1159,11 +1182,15 @@ export function getLessonById(lessonId: LessonId): Lesson | undefined {
   return LESSONS.find((l) => l.id === lessonId);
 }
 
-export function getExerciseById(exerciseId: LessonExerciseId): LessonExercise | undefined {
+export function getExerciseById(
+  exerciseId: LessonExerciseId,
+): LessonExercise | undefined {
   return LESSON_EXERCISES.find((e) => e.id === exerciseId);
 }
 
-export function getTopicByLessonId(lessonId: LessonId): LessonTopic | undefined {
+export function getTopicByLessonId(
+  lessonId: LessonId,
+): LessonTopic | undefined {
   const lesson = getLessonById(lessonId);
   if (!lesson) return undefined;
   return LESSON_TOPICS.find((t) => t.id === lesson.topicId);
@@ -1184,10 +1211,12 @@ export function lessonFeatureSummary(lesson: Lesson | undefined): string[] {
   const checkpointCount = countLessonStepType(lesson, "checkpoint");
   const exerciseCount = countLessonStepType(lesson, "exercise");
   if (vizCount) tags.push(`${vizCount} viz`);
-  if (checkpointCount) tags.push(`${checkpointCount} checkpoint${checkpointCount === 1 ? "" : "s"}`);
+  if (checkpointCount)
+    tags.push(
+      `${checkpointCount} checkpoint${checkpointCount === 1 ? "" : "s"}`,
+    );
   if (exerciseCount) tags.push(`${exerciseCount} exercise`);
   tags.push(`${lesson.steps.length} steps`);
   tags.push(`${lesson.estimatedMinutes} min`);
   return tags;
 }
-

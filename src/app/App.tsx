@@ -510,19 +510,17 @@ export function App() {
       }
 
       const snake = key.replace(/-/g, "_");
-      const historyHit = useStudyStore
-        .getState()
-        .history.find((item) => {
-          if (!item.path) return false;
-          const p = item.path.toLowerCase();
-          const t = (item.title ?? "").toLowerCase();
-          return (
-            p.includes(key) ||
-            p.includes(snake) ||
-            t.includes(key) ||
-            t.includes(snake)
-          );
-        });
+      const historyHit = useStudyStore.getState().history.find((item) => {
+        if (!item.path) return false;
+        const p = item.path.toLowerCase();
+        const t = (item.title ?? "").toLowerCase();
+        return (
+          p.includes(key) ||
+          p.includes(snake) ||
+          t.includes(key) ||
+          t.includes(snake)
+        );
+      });
       if (historyHit?.path) {
         const cwd = useSessionStore.getState().cwd;
         const resolved = await fileService.resolvePath(cwd, historyHit.path);
@@ -557,7 +555,8 @@ export function App() {
       try {
         const entries = await fileService.listDirectory(cwd);
         for (const entry of entries) {
-          if (entry.isDir || !entry.name.toLowerCase().endsWith(".py")) continue;
+          if (entry.isDir || !entry.name.toLowerCase().endsWith(".py"))
+            continue;
           try {
             const file = await fileService.readTextFile(entry.path);
             const fileKey = extractPracticeKey(file.content);
@@ -1933,9 +1932,7 @@ export function App() {
                           : "No workspace"}
                       </span>
                       <span>{session.shellMode.toUpperCase()}</span>
-                      <span>
-                        {aiReady ? "AI ready" : "AI offline"}
-                      </span>
+                      <span>{aiReady ? "AI ready" : "AI offline"}</span>
                       <span>{activeTab?.dirty ? "Unsaved" : "Saved"}</span>
                       <label>
                         <span className="sr-only">Language</span>
@@ -2053,9 +2050,7 @@ export function App() {
                       {workspaceConfig ? ".scratchcli.json" : "Default config"}
                     </span>
                     <span>Local</span>
-                    <span>
-                      {aiReady ? "AI ready" : "AI offline"}
-                    </span>
+                    <span>{aiReady ? "AI ready" : "AI offline"}</span>
                     <span>Ctrl+K · Commands</span>
                   </footer>
                 </div>
@@ -2108,7 +2103,9 @@ export function App() {
                     }
                   }}
                   onCreatePracticeFile={createPracticeFile}
-                  onOpenSubmittedFile={(path) => void cliHandlers.openFile(path)}
+                  onOpenSubmittedFile={(path) =>
+                    void cliHandlers.openFile(path)
+                  }
                   onOpenDoneProblem={openDoneProblem}
                   onOpenVisualize={() => openVisualize()}
                   onOpenStudy={() => setStudyOpen(true)}
@@ -2156,7 +2153,9 @@ export function App() {
                   onOpenSettings={() => setAiSettingsOpen(true)}
                   onInsert={() => undefined}
                   onCreatePracticeFile={createPracticeFile}
-                  onOpenSubmittedFile={(path) => void cliHandlers.openFile(path)}
+                  onOpenSubmittedFile={(path) =>
+                    void cliHandlers.openFile(path)
+                  }
                   onOpenDoneProblem={openDoneProblem}
                   onOpenVisualize={() => openVisualize()}
                   onOpenStudy={() => setStudyOpen(true)}

@@ -41,8 +41,10 @@ export function CometStars() {
           y: Math.random() * height,
         };
       }
-      if (edge === 0) return { ...base, x: width + 12, y: Math.random() * height };
-      if (edge === 1) return { ...base, x: Math.random() * width, y: height + 12 };
+      if (edge === 0)
+        return { ...base, x: width + 12, y: Math.random() * height };
+      if (edge === 1)
+        return { ...base, x: Math.random() * width, y: height + 12 };
       if (edge === 2) return { ...base, x: -12, y: Math.random() * height };
       return { ...base, x: Math.random() * width, y: -12 };
     };

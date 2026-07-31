@@ -11,6 +11,7 @@ type Props = {
   onChoose: (command: SlashCommand) => void;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function matchingSlashCommands(commands: SlashCommand[], query: string) {
   const needle = query.trim().toLowerCase();
   if (!needle) return commands;

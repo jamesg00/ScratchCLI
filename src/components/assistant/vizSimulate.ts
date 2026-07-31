@@ -641,7 +641,8 @@ function simTreeBfs(inputs: VizExtractedInputs): VizPlan | null {
     const left = 2 * i + 1;
     const right = 2 * i + 2;
     if (left < values.length) edges.push({ from: String(i), to: String(left) });
-    if (right < values.length) edges.push({ from: String(i), to: String(right) });
+    if (right < values.length)
+      edges.push({ from: String(i), to: String(right) });
   }
 
   const code = codeLines(`
@@ -659,7 +660,9 @@ def level_order(root):
     return out
 `);
 
-  const structureFor = (stateById: Record<string, string>): VizStructurePayload => {
+  const structureFor = (
+    stateById: Record<string, string>,
+  ): VizStructurePayload => {
     return {
       kind: "tree",
       rootId: "0",

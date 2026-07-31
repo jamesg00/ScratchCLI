@@ -1,4 +1,8 @@
-import type { VizStructureEdge, VizStructureNode, VizStructurePayload } from "./vizPlan";
+import type {
+  VizStructureEdge,
+  VizStructureNode,
+  VizStructurePayload,
+} from "./vizPlan";
 
 type Props = {
   structure: VizStructurePayload;
@@ -38,18 +42,26 @@ function edgeColor(edge: VizStructureEdge): string {
   if (!s) return "rgba(200,220,255,0.55)";
   if (s.includes("active") || s.includes("cur")) return "#ff4d4d";
   if (s.includes("visited") || s.includes("done")) return "#3ddc84";
-  if (s.includes("front") || s.includes("frontier") || s.includes("queue")) return "#ffcc00";
+  if (s.includes("front") || s.includes("frontier") || s.includes("queue"))
+    return "#ffcc00";
   return "rgba(200,220,255,0.55)";
 }
 
 function computePositions(structure: VizStructurePayload): Map<string, Point> {
   const coordsProvided = structure.nodes.every(
-    (n) => typeof n.x === "number" && Number.isFinite(n.x) && typeof n.y === "number" && Number.isFinite(n.y),
+    (n) =>
+      typeof n.x === "number" &&
+      Number.isFinite(n.x) &&
+      typeof n.y === "number" &&
+      Number.isFinite(n.y),
   );
 
   if (coordsProvided) {
     return new Map(
-      structure.nodes.map((n) => [n.id, { x: n.x as number, y: n.y as number }]),
+      structure.nodes.map((n) => [
+        n.id,
+        { x: n.x as number, y: n.y as number },
+      ]),
     );
   }
 
@@ -57,9 +69,14 @@ function computePositions(structure: VizStructurePayload): Map<string, Point> {
 
   if (structure.kind === "linked_list") {
     const left = 70;
-    const step = Math.max(54, Math.min(86, (VIEW_W - 140) / Math.max(1, nodes.length)));
+    const step = Math.max(
+      54,
+      Math.min(86, (VIEW_W - 140) / Math.max(1, nodes.length)),
+    );
     const midY = 120;
-    return new Map(nodes.map((n, i) => [n.id, { x: left + i * step, y: midY }]));
+    return new Map(
+      nodes.map((n, i) => [n.id, { x: left + i * step, y: midY }]),
+    );
   }
 
   if (structure.kind === "graph") {
@@ -70,7 +87,10 @@ function computePositions(structure: VizStructurePayload): Map<string, Point> {
     return new Map(
       nodes.map((n, i) => {
         const theta = start + (i / Math.max(1, nodes.length)) * Math.PI * 2;
-        return [n.id, { x: cx + r * Math.cos(theta), y: cy + r * Math.sin(theta) }];
+        return [
+          n.id,
+          { x: cx + r * Math.cos(theta), y: cy + r * Math.sin(theta) },
+        ];
       }),
     );
   }
@@ -136,7 +156,11 @@ function computePositions(structure: VizStructurePayload): Map<string, Point> {
       // Any nodes not reached by BFS fallback to circle-ish.
       const missing = nodes.filter((n) => !positions.has(n.id));
       if (missing.length > 0) {
-        const fallback = computePositions({ ...structure, kind: "graph", nodes: missing } as any);
+        const fallback = computePositions({
+          ...structure,
+          kind: "graph",
+          nodes: missing,
+        });
         for (const n of missing) {
           const p = fallback.get(n.id);
           if (p) positions.set(n.id, p);
@@ -168,7 +192,10 @@ function computePositions(structure: VizStructurePayload): Map<string, Point> {
 
   // Ultimate fallback: simple left-to-right.
   const left = 70;
-  const step = Math.max(44, Math.min(92, (VIEW_W - 140) / Math.max(1, nodes.length)));
+  const step = Math.max(
+    44,
+    Math.min(92, (VIEW_W - 140) / Math.max(1, nodes.length)),
+  );
   const midY = 110;
   return new Map(nodes.map((n, i) => [n.id, { x: left + i * step, y: midY }]));
 }
@@ -182,8 +209,7 @@ export function StructureViz({ structure }: Props) {
   const positions = computePositions(structure);
 
   const edges = structure.edges ?? [];
-  const edgeList: VizStructureEdge[] =
-    edges.length > 0 ? edges : [];
+  const edgeList: VizStructureEdge[] = edges.length > 0 ? edges : [];
 
   return (
     <div
@@ -220,8 +246,7 @@ export function StructureViz({ structure }: Props) {
           if (!a || !b) return null;
           return (
             <line
-              // eslint-disable-next-line react/no-array-index-key
-              key={i}
+              key={`${e.from}-${e.to}-${i}`}
               x1={a.x}
               y1={a.y}
               x2={b.x}
@@ -240,7 +265,14 @@ export function StructureViz({ structure }: Props) {
           const { fill, stroke } = stateToColors(n.state);
           return (
             <g key={n.id}>
-              <circle cx={p.x} cy={p.y} r={18} fill={fill} stroke={stroke} strokeWidth={2} />
+              <circle
+                cx={p.x}
+                cy={p.y}
+                r={18}
+                fill={fill}
+                stroke={stroke}
+                strokeWidth={2}
+              />
               <text
                 x={p.x}
                 y={p.y + 4}
@@ -258,4 +290,3 @@ export function StructureViz({ structure }: Props) {
     </div>
   );
 }
-

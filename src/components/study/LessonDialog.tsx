@@ -48,11 +48,7 @@ function CopyBlocks({ blocks }: { blocks: LessonCopyBlock[] }) {
           );
         }
         return (
-          <div
-            key={index}
-            className="lesson-callout"
-            data-tone={block.tone}
-          >
+          <div key={index} className="lesson-callout" data-tone={block.tone}>
             <strong>{block.title}</strong>
             <p>{block.text}</p>
           </div>
@@ -112,11 +108,7 @@ function CheckpointCard({
   );
 }
 
-function StepCard({
-  step,
-}: {
-  step: LessonStep;
-}) {
+function StepCard({ step }: { step: LessonStep }) {
   if (
     step.type === "concept" ||
     step.type === "worked_example" ||
@@ -171,7 +163,11 @@ function resolvePracticeFile(exercise: LessonExercise): PracticeFile | null {
   return exercise.practiceFile ?? null;
 }
 
-export function LessonDialog({ lessonId, onClose, onCreatePracticeFile }: Props) {
+export function LessonDialog({
+  lessonId,
+  onClose,
+  onCreatePracticeFile,
+}: Props) {
   const lesson = useMemo(() => getLessonById(lessonId), [lessonId]);
   const stepIndexByLesson = useStudyStore((s) => s.stepIndexByLesson);
   const completedExerciseIds = useStudyStore((s) => s.completedExerciseIds);
@@ -189,10 +185,21 @@ export function LessonDialog({ lessonId, onClose, onCreatePracticeFile }: Props)
   const index = stepIndexByLesson[lessonId] ?? 0;
   const step = lesson?.steps[index];
 
+  // Keep the lesson selection in the store, including when a stale id briefly
+  // renders while the dialog is closing or switching lessons.
+  useEffect(() => {
+    if (lesson && currentLessonId !== lessonId) startLesson(lessonId);
+  }, [currentLessonId, lesson, lessonId, startLesson]);
+
   if (!lesson || !step) {
     return (
       <div className="dialog-backdrop" role="presentation" onClick={onClose}>
-        <section className="lesson-dialog" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+        <section
+          className="lesson-dialog"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => e.stopPropagation()}
+        >
           <header>
             <h2>Lesson</h2>
             <button type="button" onClick={onClose} aria-label="Close">
@@ -205,16 +212,13 @@ export function LessonDialog({ lessonId, onClose, onCreatePracticeFile }: Props)
     );
   }
 
-  // Ensure store current lesson is set when opening.
-  useEffect(() => {
-    if (currentLessonId !== lessonId) startLesson(lessonId);
-  }, [currentLessonId, lessonId, startLesson]);
-
   const isLast = index >= lesson.steps.length - 1;
   const exercise =
     step.type === "exercise" ? getExerciseById(step.exerciseId) : undefined;
   const exerciseDone =
-    step.type === "exercise" ? completedExerciseIds.includes(step.exerciseId) : false;
+    step.type === "exercise"
+      ? completedExerciseIds.includes(step.exerciseId)
+      : false;
   const stepLabel = STEP_LABELS[step.type];
 
   return (
@@ -312,13 +316,17 @@ export function LessonDialog({ lessonId, onClose, onCreatePracticeFile }: Props)
                   }
                 }}
               >
-                {exerciseDone ? "Exercise opened" : busy ? "Opening…" : "Open practice file"}
+                {exerciseDone
+                  ? "Exercise opened"
+                  : busy
+                    ? "Opening…"
+                    : "Open practice file"}
               </button>
 
               {revealExercise && !resolvePracticeFile(exercise) ? (
                 <p className="lesson-error">
-                  This exercise is a placeholder right now. Complete `lesson-mvp`
-                  to author the practice file content.
+                  This exercise is a placeholder right now. Complete
+                  `lesson-mvp` to author the practice file content.
                 </p>
               ) : null}
             </div>
@@ -329,7 +337,9 @@ export function LessonDialog({ lessonId, onClose, onCreatePracticeFile }: Props)
               <button
                 type="button"
                 disabled={index <= 0}
-                onClick={() => setLessonStepIndex(lessonId, Math.max(0, index - 1))}
+                onClick={() =>
+                  setLessonStepIndex(lessonId, Math.max(0, index - 1))
+                }
               >
                 Prev
               </button>
@@ -353,7 +363,9 @@ export function LessonDialog({ lessonId, onClose, onCreatePracticeFile }: Props)
               <button
                 type="button"
                 disabled={index <= 0}
-                onClick={() => setLessonStepIndex(lessonId, Math.max(0, index - 1))}
+                onClick={() =>
+                  setLessonStepIndex(lessonId, Math.max(0, index - 1))
+                }
               >
                 Prev
               </button>
@@ -378,4 +390,3 @@ export function LessonDialog({ lessonId, onClose, onCreatePracticeFile }: Props)
     </div>
   );
 }
-

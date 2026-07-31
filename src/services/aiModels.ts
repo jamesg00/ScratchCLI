@@ -10,7 +10,9 @@ export const CLOUD_MODELS: Record<
 };
 
 export function providerNeedsApiKey(provider: ChatProviderId): boolean {
-  return provider === "xai" || provider === "openai" || provider === "anthropic";
+  return (
+    provider === "xai" || provider === "openai" || provider === "anthropic"
+  );
 }
 
 export function isLocalProvider(provider: ChatProviderId): boolean {

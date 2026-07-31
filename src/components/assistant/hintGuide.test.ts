@@ -77,7 +77,10 @@ describe("applyLineNumberHints", () => {
   });
 
   it("accepts markdown bullet line hints from local models", () => {
-    const result = applyLineNumberHints("a = 1\nb = 2", "- **L2:** check this value");
+    const result = applyLineNumberHints(
+      "a = 1\nb = 2",
+      "- **L2:** check this value",
+    );
     expect(result?.hintCount).toBe(1);
     expect(result?.annotated).toContain("# HINT: check this value");
   });

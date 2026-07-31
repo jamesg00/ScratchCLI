@@ -12,6 +12,7 @@ type Props = {
 
 export function AiSettingsDialog({ onClose }: Props) {
   const appearance = useAppearanceStore();
+  const grokApiKey = appearance.grokApiKey;
   const ai = useAiSettingsStore();
   const [openaiKey, setOpenaiKey] = useState("");
   const [anthropicKey, setAnthropicKey] = useState("");
@@ -24,12 +25,12 @@ export function AiSettingsDialog({ onClose }: Props) {
       try {
         setOpenaiKey((await secretsGet("openai")) ?? "");
         setAnthropicKey((await secretsGet("anthropic")) ?? "");
-        setXaiKey((await secretsGet("xai")) ?? appearance.grokApiKey ?? "");
+        setXaiKey((await secretsGet("xai")) ?? grokApiKey ?? "");
       } catch {
         /* ignore */
       }
     })();
-  }, []);
+  }, [grokApiKey]);
 
   const refreshLocal = async () => {
     setBusy(true);
@@ -123,14 +124,16 @@ export function AiSettingsDialog({ onClose }: Props) {
                 }
               >
                 <option value="fast">Fast - smallest Python context</option>
-                <option value="balanced">Balanced - smart compact context</option>
+                <option value="balanced">
+                  Balanced - smart compact context
+                </option>
                 <option value="full">Full - larger file context</option>
               </select>
             </label>
             <p className="ai-providers-status">
-              Fast strips more file text for quicker local replies. Balanced keeps
-              more helpers/examples. Full sends larger context when quality matters
-              more than speed.
+              Fast strips more file text for quicker local replies. Balanced
+              keeps more helpers/examples. Full sends larger context when
+              quality matters more than speed.
             </p>
             <label>
               Local stream style

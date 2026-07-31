@@ -179,12 +179,19 @@ async fn fetch_company_problems() -> Result<Vec<CompanyProblem>, AppError> {
         .get(COMPANY_DATA_URL)
         .send()
         .await
-        .map_err(|error| lc_error(format!("Could not reach company patterns list: {error}"), true))?;
+        .map_err(|error| {
+            lc_error(
+                format!("Could not reach company patterns list: {error}"),
+                true,
+            )
+        })?;
     let status = response.status();
-    let text = response
-        .text()
-        .await
-        .map_err(|_| lc_error("Company patterns list returned an unreadable response.", true))?;
+    let text = response.text().await.map_err(|_| {
+        lc_error(
+            "Company patterns list returned an unreadable response.",
+            true,
+        )
+    })?;
     if !status.is_success() {
         return Err(lc_error(
             format!(
@@ -407,12 +414,14 @@ pub async fn leetcode_list_companies() -> Result<Vec<LeetCodeCompanyInfo>, AppEr
     let mut map = std::collections::BTreeMap::<String, LeetCodeCompanyInfo>::new();
     for problem in problems.iter().filter(|problem| !problem.item.paid_only) {
         for company in &problem.companies {
-            let entry = map.entry(company.slug.clone()).or_insert(LeetCodeCompanyInfo {
-                name: company.name.clone(),
-                slug: company.slug.clone(),
-                question_count: 0,
-                total_frequency: 0,
-            });
+            let entry = map
+                .entry(company.slug.clone())
+                .or_insert(LeetCodeCompanyInfo {
+                    name: company.name.clone(),
+                    slug: company.slug.clone(),
+                    question_count: 0,
+                    total_frequency: 0,
+                });
             entry.question_count += 1;
             entry.total_frequency += company.frequency;
         }

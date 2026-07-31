@@ -1,9 +1,5 @@
 import { getIndentUnit } from "@codemirror/language";
-import {
-  RangeSetBuilder,
-  EditorState,
-  type Range,
-} from "@codemirror/state";
+import { RangeSetBuilder, EditorState, type Range } from "@codemirror/state";
 import {
   Decoration,
   EditorView,
@@ -160,7 +156,9 @@ function buildGuides(view: EditorView): DecorationSet {
   const unit = Math.max(1, getIndentUnit(view.state));
   const tabSize = view.state.facet(EditorState.tabSize);
   const indents = computeIndents(view.state, unit, tabSize);
-  const cursorLine = view.state.doc.lineAt(view.state.selection.main.head).number;
+  const cursorLine = view.state.doc.lineAt(
+    view.state.selection.main.head,
+  ).number;
   const activeGuide = getActiveGuide(indents, cursorLine, view.state.doc.lines);
 
   const ranges: Array<Range<Decoration>> = [];
