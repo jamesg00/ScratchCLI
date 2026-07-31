@@ -14,7 +14,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "validate:frontend": "npm run format:check && npm run typecheck && npm test && npm run lint && npm run build",
-    "pack:msix": "npm run tauri -- build && powershell -NoProfile -Command \"New-Item -ItemType Directory -Force -Path msix-dist | Out-Null; Copy-Item -Force src-tauri/target/release/scratchcli.exe msix-dist/scratchcli.exe\" && winapp package ./msix-dist --manifest ./Package.appxmanifest --output ./ScratchCLI_0.1.2.0_x64.msix --exe scratchcli.exe"
+    "pack:msix": "npm run tauri -- build && powershell -ExecutionPolicy Bypass -NoProfile -File scripts/package-msix.ps1"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.4",

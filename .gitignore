@@ -1,6 +1,7 @@
 node_modules/
 dist/
 msix-dist/
+release/
 src-tauri/target/
 .idea/
 .vscode/

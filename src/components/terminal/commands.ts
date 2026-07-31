@@ -126,6 +126,7 @@ const EDITOR_SLASH_NAMES = new Set([
   "tab",
   "clone",
   "duplicate",
+  "grok",
   "coach",
   "dsa",
   "study",
@@ -471,6 +472,7 @@ export function parseTerminalCommand(raw: string): TerminalCommand {
     case "clone":
     case "duplicate":
       return { kind: "tabClone" };
+    case "grok":
     case "coach":
     case "dsa":
       return { kind: "grok" };
