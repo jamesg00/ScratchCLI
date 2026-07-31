@@ -1,4 +1,4 @@
-# Store & GitHub listing copy (ScratchCLI v0.1.1)
+﻿# Store & GitHub listing copy (ScratchCLI v0.1.2)
 
 Paste these into Partner Center / GitHub Release as needed.
 
@@ -33,13 +33,13 @@ Requires the Microsoft Edge **WebView2** Runtime (included on most Windows 10/11
 
 ---
 
-## What’s new (v0.1.1)
+## What’s new (v0.1.2)
 
-- DSA coach always uses the currently open practice file for help/hints
-- `easy` / `medium` / `hard` invent sealed local practice (reliable CASES); `leetcode <slug>` for real LC pulls
-- Done list: click to reopen finished problems; saves path/code on done/submit
-- Study board / lessons expansions and visualize overlays
-- Indent guides, menu polish, and local AI context improvements
+- `easy` / `medium` / `next` / `oa` pull real LeetCode problems again; `invent` / `hard` invent+seal locally
+- Submit accepts when every case in the file passes (no fixed 3/4 minimum)
+- Linked-list / tree LeetCode problems get `ListNode` / `TreeNode` helpers in the harness
+- File mode still attaches the open buffer after Clear; invent no longer spoils the solution in coach chat
+- Clear conversation wipes DSA coach + Assistant chat history
 
 ---
 
@@ -51,32 +51,31 @@ CLI-first local coding scratchpad for Windows — notes, editor, shell, and opti
 
 ## GitHub Release title / body (example)
 
-**Title:** ScratchCLI v0.1.1
+**Title:** ScratchCLI v0.1.2
 
 **Body:**
 
 ```markdown
-## ScratchCLI 0.1.1
+## ScratchCLI 0.1.2
 
-Practice/coach reliability release — invent+seal problems, reopen done list, and always coach the open file.
+Coach/practice reliability — LeetCode easy/medium restored, flexible submit, ListNode/TreeNode harness, File-mode context after Clear.
 
 ### Download
 
-- **Installer (x64):** `ScratchCLI_0.1.1_x64-setup.exe`
-- Silent install: `ScratchCLI_0.1.1_x64-setup.exe /S`
+- **Installer (x64):** `ScratchCLI_0.1.2_x64-setup.exe`
+- Silent install: `ScratchCLI_0.1.2_x64-setup.exe /S`
 
 ### Highlights
 
-- Open-file context for Assistant + DSA coach (cloud and local)
-- Invented Easy/Medium/Hard practice with sealed local tests
-- Done list click-to-reopen
-- Study board / visualize / UX polish
+- Easy/medium/next/oa fetch LeetCode; invent/hard invent+seal
+- Submit when all cases in the file pass
+- ListNode/TreeNode helpers for LC list/tree problems
+- File mode keeps open-file context after Clear; invent stream hidden from coach
+- Clear conversation for DSA + Assistant
 
 ### Notes
 
 - Requires WebView2 (usually already on Windows 10/11).
 - Unsigned builds may show a SmartScreen warning.
 - Your notes and API keys stay in your user AppData — each Windows account starts fresh.
-
-See the README and PRIVACY.md for details.
 ```

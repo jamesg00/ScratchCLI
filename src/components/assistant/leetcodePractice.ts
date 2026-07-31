@@ -198,6 +198,15 @@ function findMethodName(code: string): string | null {
 }
 
 function findParamNames(code: string, method: string): string[] {
+  return findParamAnnotations(code, method).map((p) => p.name);
+}
+
+type ParamAnn = { name: string; type: string };
+
+function findParamAnnotations(
+  code: string,
+  method: string,
+): ParamAnn[] {
   const re = new RegExp(`def\\s+${method}\\s*\\(([^)]*)\\)`, "m");
   const m = code.match(re);
   if (!m) return [];
@@ -205,8 +214,25 @@ function findParamNames(code: string, method: string): string[] {
     .split(",")
     .map((p) => p.trim())
     .filter(Boolean)
-    .map((p) => p.split(":")[0]!.trim())
-    .filter((p) => p && p !== "self");
+    .map((p) => {
+      const [namePart, ...typeParts] = p.split(":");
+      const name = (namePart ?? "").trim();
+      const type = typeParts.join(":").split("=")[0]?.trim() ?? "";
+      return { name, type };
+    })
+    .filter((p) => p.name && p.name !== "self");
+}
+
+function findReturnType(code: string, method: string): string {
+  const re = new RegExp(
+    `def\\s+${method}\\s*\\([^)]*\\)\\s*(?:->\\s*([^:]+))?\\s*:`,
+    "m",
+  );
+  return code.match(re)?.[1]?.trim() ?? "";
+}
+
+function usesType(type: string, name: "ListNode" | "TreeNode"): boolean {
+  return new RegExp(`\\b${name}\\b`).test(type);
 }
 
 function orderArgs(
@@ -217,6 +243,136 @@ function orderArgs(
     return paramNames.map((p) => bindings[p]);
   }
   return Object.values(bindings);
+}
+
+const LIST_NODE_HELPERS = `# Definition for singly-linked list (LeetCode).
+class ListNode:
+    def __init__(self, val=0, next=None):
+        self.val = val
+        self.next = next
+
+
+def _to_listnode(vals):
+    if vals is None:
+        return None
+    if isinstance(vals, ListNode):
+        return vals
+    if not isinstance(vals, list):
+        raise TypeError(f"expected list for ListNode, got {type(vals)!r}")
+    dummy = ListNode(0)
+    cur = dummy
+    for v in vals:
+        cur.next = ListNode(v)
+        cur = cur.next
+    return dummy.next
+
+
+def _from_listnode(node):
+    out = []
+    while node is not None:
+        out.append(node.val)
+        node = node.next
+    return out
+`;
+
+const TREE_NODE_HELPERS = `# Definition for a binary tree node (LeetCode).
+class TreeNode:
+    def __init__(self, val=0, left=None, right=None):
+        self.val = val
+        self.left = left
+        self.right = right
+
+
+def _to_treenode(vals):
+    if vals is None or vals == []:
+        return None
+    if isinstance(vals, TreeNode):
+        return vals
+    if not isinstance(vals, list):
+        raise TypeError(f"expected list for TreeNode, got {type(vals)!r}")
+    root = TreeNode(vals[0])
+    queue = [root]
+    i = 1
+    while queue and i < len(vals):
+        node = queue.pop(0)
+        if i < len(vals) and vals[i] is not None:
+            node.left = TreeNode(vals[i])
+            queue.append(node.left)
+        i += 1
+        if i < len(vals) and vals[i] is not None:
+            node.right = TreeNode(vals[i])
+            queue.append(node.right)
+        i += 1
+    return root
+
+
+def _from_treenode(root):
+    if root is None:
+        return []
+    out = []
+    queue = [root]
+    while queue:
+        node = queue.pop(0)
+        if node is None:
+            out.append(None)
+            continue
+        out.append(node.val)
+        queue.append(node.left)
+        queue.append(node.right)
+    while out and out[-1] is None:
+        out.pop()
+    return out
+`;
+
+function buildTypedHarness(options: {
+  url: string;
+  method: string;
+  params: Array<{ name: string; type: string }>;
+  returnType: string;
+  caseLines: string[];
+}): string {
+  const { url, method, params, returnType, caseLines } = options;
+  const argConverters = params.map((p, index) => {
+    if (usesType(p.type, "ListNode")) {
+      return `_to_listnode(args[${index}])`;
+    }
+    if (usesType(p.type, "TreeNode")) {
+      return `_to_treenode(args[${index}])`;
+    }
+    return `args[${index}]`;
+  });
+  const callArgs = argConverters.join(", ");
+  let compareBlock: string;
+  if (usesType(returnType, "ListNode")) {
+    compareBlock = `got = _from_listnode(result)
+            if got == expected:`;
+  } else if (usesType(returnType, "TreeNode")) {
+    compareBlock = `got = _from_treenode(result)
+            if got == expected:`;
+  } else {
+    compareBlock = `got = result
+            if got == expected:`;
+  }
+
+  return `if __name__ == "__main__":
+    # Official LeetCode examples: ${url}
+    CASES = [
+${caseLines.join("\n")}
+    ]
+    passed = 0
+    sol = Solution()
+    for i, (args, expected) in enumerate(CASES, 1):
+        try:
+            result = getattr(sol, ${JSON.stringify(method)})(${callArgs})
+            ${compareBlock}
+                print(f"Test {i}: PASS (input {args!r})")
+                passed += 1
+            else:
+                print(f"Test {i}: FAIL (input {args!r}; got {got!r}, expected {expected!r})")
+        except Exception as e:
+            print(f"Test {i}: FAIL (input {args!r}; {e})")
+    print(f"{passed}/{len(CASES)} tests passed")
+`;
 }
 
 export function buildLeetCodeScaffold(
@@ -238,7 +394,16 @@ export function buildLeetCodeScaffold(
     pySnippet?.code ?? "class Solution:\n    def solve(self):\n        pass\n",
   );
   const method = findMethodName(stub) ?? "solve";
-  const params = findParamNames(stub, method);
+  const params = findParamAnnotations(stub, method);
+  const returnType = findReturnType(stub, method);
+  const needsListNode =
+    /\bListNode\b/.test(stub) ||
+    params.some((p) => usesType(p.type, "ListNode")) ||
+    usesType(returnType, "ListNode");
+  const needsTreeNode =
+    /\bTreeNode\b/.test(stub) ||
+    params.some((p) => usesType(p.type, "TreeNode")) ||
+    usesType(returnType, "TreeNode");
 
   const fileName = `${problem.titleSlug.replace(/-/g, "_")}.py`;
   const tags = problem.topicTags.join(", ") || "—";
@@ -264,7 +429,7 @@ export function buildLeetCodeScaffold(
     conciseExamples,
     plain.slice(0, 6000),
     "",
-    "Local submit requires at least 4 explicit passing cases. Add edge cases to CASES before submitting.",
+    "Local submit accepts when every explicit case in this file passes (official example counts vary by problem).",
   ].join("\n");
 
   let harness = "";
@@ -282,36 +447,31 @@ export function buildLeetCodeScaffold(
         `LeetCode supplied ${officialInputCount} official input(s), but only ${examples.length} had parseable expected output(s). The unmatched inputs were not added as tests so ScratchCLI never invents an expected answer.`,
       );
     }
-    if (examples.length < 4) {
+    if (examples.length < 2) {
       warnings.push(
-        `LeetCode exposes ${examples.length} parseable official example(s). Add edge cases to CASES before local submit (minimum 4 cases).`,
+        `Only ${examples.length} parseable official example(s). Consider adding another edge case to CASES for stronger local coverage.`,
       );
     }
+    const paramNames = params.map((p) => p.name);
     const caseLines = examples.map((ex) => {
-      const args = orderArgs(ex.bindings, params);
+      const args = orderArgs(ex.bindings, paramNames);
       return `        (${toPythonLiteral(args)}, ${toPythonLiteral(ex.expected)}),`;
     });
-    harness = `if __name__ == "__main__":
-    # Start with official examples, then add edge cases before local submit: ${problem.url}
-    CASES = [
-${caseLines.join("\n")}
-    ]
-    passed = 0
-    sol = Solution()
-    for i, (args, expected) in enumerate(CASES, 1):
-        try:
-            result = getattr(sol, ${JSON.stringify(method)})(*args)
-            if result == expected:
-                print(f"Test {i}: PASS (input {args!r})")
-                passed += 1
-            else:
-                print(f"Test {i}: FAIL (input {args!r}; got {result!r}, expected {expected!r})")
-        except Exception as e:
-            print(f"Test {i}: FAIL (input {args!r}; {e})")
-    print(f"{passed}/{len(CASES)} tests passed")
-    print("Add explicit edge cases before local submit (minimum 4 cases).")
-`;
+    harness = buildTypedHarness({
+      url: problem.url,
+      method,
+      params,
+      returnType,
+      caseLines,
+    });
   }
+
+  const helpers = [
+    needsListNode ? LIST_NODE_HELPERS : "",
+    needsTreeNode ? TREE_NODE_HELPERS : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const content = `# FILE: ${fileName}
 # LC: ${problem.titleSlug}
@@ -321,7 +481,7 @@ ${docBody}
 
 from typing import List, Optional, Dict, Set, Tuple
 
-${stub}
+${helpers}${stub}
 ${harness}`;
 
   return {

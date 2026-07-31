@@ -73,9 +73,9 @@ describe("buildLeetCodeScaffold", () => {
       url: "https://leetcode.com/problems/two-sum/",
     };
     const { file, warnings, officialCaseCount } = buildLeetCodeScaffold(problem);
-    expect(warnings).toContain(
-      "LeetCode exposes 2 parseable official example(s). Add edge cases to CASES before local submit (minimum 4 cases).",
-    );
+    expect(
+      warnings.some((w) => /at least 3|minimum 4|need at least 3/i.test(w)),
+    ).toBe(false);
     expect(officialCaseCount).toBe(2);
     expect(file.fileName).toBe("two_sum.py");
     expect(file.content).toContain("# LC: two-sum");
@@ -83,5 +83,54 @@ describe("buildLeetCodeScaffold", () => {
     expect(file.content).toContain("pass");
     expect(file.content).toContain("[2, 7, 11, 15]");
     expect(file.content).toContain("CASES");
+    expect(file.content).not.toContain("class ListNode");
+  });
+
+  it("injects ListNode helpers and converts list inputs for linked-list problems", () => {
+    const html = `
+<p>Merge two sorted linked lists.</p>
+<p><strong>Example 1:</strong></p>
+<pre>Input: list1 = [1,2,4], list2 = [1,3,4]
+Output: [1,1,2,3,4,4]
+</pre>
+<p><strong>Example 2:</strong></p>
+<pre>Input: list1 = [], list2 = []
+Output: []
+</pre>
+`;
+    const problem: LeetCodeProblem = {
+      title: "Merge Two Sorted Lists",
+      titleSlug: "merge-two-sorted-lists",
+      difficulty: "Easy",
+      frontendId: "21",
+      content: html,
+      paidOnly: false,
+      exampleTestcaseList: ["[1,2,4]\n[1,3,4]", "[]\n[]"],
+      codeSnippets: [
+        {
+          lang: "Python3",
+          langSlug: "python3",
+          code: `# Definition for singly-linked list.
+# class ListNode:
+#     def __init__(self, val=0, next=None):
+#         self.val = val
+#         self.next = next
+class Solution:
+    def mergeTwoLists(self, list1: Optional[ListNode], list2: Optional[ListNode]) -> Optional[ListNode]:
+        return None
+`,
+        },
+      ],
+      topicTags: ["Linked List"],
+      url: "https://leetcode.com/problems/merge-two-sorted-lists/",
+    };
+    const { file } = buildLeetCodeScaffold(problem);
+    expect(file.content).toContain("class ListNode:");
+    expect(file.content).toContain("def _to_listnode");
+    expect(file.content).toContain("def _from_listnode");
+    expect(file.content).toContain("_to_listnode(args[0])");
+    expect(file.content).toContain("_to_listnode(args[1])");
+    expect(file.content).toContain("_from_listnode(result)");
+    expect(file.content).toContain("def mergeTwoLists");
   });
 });

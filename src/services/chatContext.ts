@@ -51,6 +51,30 @@ export function clearChatContextCache(
   delete cache.snapshots[fileKey];
 }
 
+/** Stable hash for detecting whether the open buffer changed after Clear. */
+export function hashChatBuffer(buffer: string): string {
+  return simpleHash(buffer);
+}
+
+/**
+ * After Clear, keep file context paused while the buffer is unchanged.
+ * Resume automatically once the open file content changes.
+ */
+export function resolveClearedFileContext(options: {
+  paused: boolean;
+  pausedHash: string | null;
+  buffer: string;
+}): { includeFile: boolean; resume: boolean } {
+  if (!options.paused) {
+    return { includeFile: true, resume: false };
+  }
+  const hash = simpleHash(options.buffer);
+  if (options.pausedHash != null && hash === options.pausedHash) {
+    return { includeFile: false, resume: false };
+  }
+  return { includeFile: true, resume: true };
+}
+
 export function compactChatContextCache(
   cache: ChatContextCache,
   fileKey?: string,

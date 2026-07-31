@@ -1,6 +1,6 @@
 [package]
 name = "scratchcli"
-version = "0.1.1"
+version = "0.1.2"
 description = "ScratchCLI — local-first coding scratchpad + CLI"
 authors = ["ScratchCLI contributors"]
 edition = "2021"

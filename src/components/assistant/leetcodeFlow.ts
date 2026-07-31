@@ -20,9 +20,9 @@ export type LcPracticeRequest = {
 };
 
 function requireOfficialCases(scaffold: ScaffoldResult): ScaffoldResult {
-  if (scaffold.officialCaseCount >= 4) return scaffold;
+  if (scaffold.officialCaseCount >= 1) return scaffold;
   throw new Error(
-    `LeetCode exposes only ${scaffold.officialCaseCount} verified official example(s) for this problem. ScratchCLI requires 4 official cases and will not invent expected answers. Choose another problem.`,
+    `LeetCode exposes no parseable official examples for this problem. Choose another problem or type invent.`,
   );
 }
 
@@ -77,24 +77,30 @@ async function pickDifficultySlug(
 export async function fetchAndBuildLcPractice(
   req: LcPracticeRequest,
 ): Promise<ScaffoldResult & { problem: LeetCodeProblem }> {
-  const trySlugs: string[] = [];
-
-  if (req.mode === "slug") {
-    const slug = (req.slugOrId ?? "").trim();
-    if (!slug) throw new Error("Usage: leetcode <slug-or-id>");
-    trySlugs.push(slug);
-  } else if (req.mode === "easy") {
-    trySlugs.push(await pickDifficultySlug("Easy"));
-  } else if (req.mode === "medium") {
-    trySlugs.push(await pickDifficultySlug("Medium"));
-  } else if (req.mode === "company") {
-    trySlugs.push(await pickCompanySlug({ companySlug: req.companySlug }));
-  } else {
-    trySlugs.push(await pickCompanySlug());
-  }
+  const maxAttempts =
+    req.mode === "slug" ? 1 : req.mode === "easy" || req.mode === "medium" ? 8 : 6;
 
   let lastError: unknown;
-  for (const slug of trySlugs) {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    let slug: string;
+    try {
+      if (req.mode === "slug") {
+        slug = (req.slugOrId ?? "").trim();
+        if (!slug) throw new Error("Usage: leetcode <slug-or-id>");
+      } else if (req.mode === "easy") {
+        slug = await pickDifficultySlug("Easy");
+      } else if (req.mode === "medium") {
+        slug = await pickDifficultySlug("Medium");
+      } else if (req.mode === "company") {
+        slug = await pickCompanySlug({ companySlug: req.companySlug });
+      } else {
+        slug = await pickCompanySlug();
+      }
+    } catch (err) {
+      lastError = err;
+      break;
+    }
+
     try {
       const problem = await leetcodeGetProblem(slug);
       const scaffold = requireOfficialCases(buildLeetCodeScaffold(problem));
@@ -102,25 +108,9 @@ export async function fetchAndBuildLcPractice(
       return { ...scaffold, problem };
     } catch (err) {
       lastError = err;
-      if (
-        req.mode === "oa" ||
-        req.mode === "easy" ||
-        req.mode === "medium" ||
-        req.mode === "company"
-      ) {
-        useLeetCodeStore.getState().markSkipped(slug);
-        continue;
-      }
-      throw err;
+      if (req.mode === "slug") throw err;
+      useLeetCodeStore.getState().markSkipped(slug);
     }
-  }
-
-  if (req.mode === "oa" || req.mode === "company") {
-    const fallback = await pickCompanySlug({ companySlug: req.companySlug });
-    const problem = await leetcodeGetProblem(fallback);
-    const scaffold = requireOfficialCases(buildLeetCodeScaffold(problem));
-    useLeetCodeStore.getState().setLastSlug(problem.titleSlug);
-    return { ...scaffold, problem };
   }
 
   throw lastError instanceof Error

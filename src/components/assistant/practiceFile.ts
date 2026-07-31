@@ -68,6 +68,20 @@ export function extractPracticeFile(reply: string): PracticeFile | null {
   return { content: content.trimEnd() + "\n", fileName };
 }
 
+/**
+ * Coach invent replies include a full reference solution for sealing.
+ * Never show that fence in chat — only the short prose intro.
+ */
+export function inventCoachDisplay(reply: string): string {
+  const fence = reply.search(/```(?:python|py)?\s*\n/i);
+  const intro =
+    fence >= 0 ? reply.slice(0, fence).trim() : reply.trim().slice(0, 280);
+  if (intro) {
+    return `${intro}\n\n(Reference solution hidden — practice file uses \`pass\` + sealed tests.)`;
+  }
+  return "Invented a practice problem. Reference solution hidden — open the stub and solve it.";
+}
+
 function extractLargestPythonFence(reply: string): string | null {
   const re = /```(?:python|py)?\s*\n([\s\S]*?)```/gi;
   let best: string | null = null;
@@ -314,20 +328,18 @@ export function expandPracticeCommand(
     };
   }
 
-  // easy / medium / hard / next → invent + seal local CASES (not LeetCode fetch).
-  // Use `leetcode <slug>` when you want a real LC problem.
-  if (word === "easy" || word === "medium" || word === "hard") {
-    const difficulty =
-      word === "easy" ? "Easy" : word === "hard" ? "Hard" : "Medium";
-    return {
-      kind: "grok",
-      createFile: true,
-      prompt: inventPrompt(difficulty, rest || "any core DSA topic", raw),
-    };
+  // Real LeetCode pulls by difficulty / company pool.
+  // Use invent / original / hard for AI-generated sealed practice.
+  if (word === "easy") {
+    return { kind: "leetcode", mode: "easy" };
+  }
+  if (word === "medium") {
+    return { kind: "leetcode", mode: "medium" };
+  }
+  if (word === "oa" || word === "amazon") {
+    return { kind: "leetcode", mode: "oa" };
   }
   if (
-    word === "oa" ||
-    word === "amazon" ||
     word === "practice" ||
     word === "problem" ||
     word === "problems" ||
@@ -337,15 +349,7 @@ export function expandPracticeCommand(
     word === "again" ||
     word === "new"
   ) {
-    const topic =
-      word === "oa" || word === "amazon"
-        ? "Amazon OA / interview-style arrays, strings, hashing, or sliding window"
-        : rest || "any core DSA topic";
-    return {
-      kind: "grok",
-      createFile: true,
-      prompt: inventPrompt("Medium", topic, raw),
-    };
+    return { kind: "leetcode", mode: "oa" };
   }
 
   if (word === "leetcode") {
@@ -353,7 +357,7 @@ export function expandPracticeCommand(
     return { kind: "leetcode", mode: "slug", slugOrId: rest.split(/\s+/)[0] };
   }
 
-  if (isInventProblemRequest(lower)) {
+  if (word === "hard" || isInventProblemRequest(lower)) {
     const difficulty = difficultyFromText(lower);
     return {
       kind: "grok",
@@ -362,17 +366,9 @@ export function expandPracticeCommand(
     };
   }
 
-  // Free-form "give me a problem" → invent + seal (reliable local tests)
+  // Free-form "give me a problem" → company OA LeetCode pull
   if (isNewProblemRequest(lower)) {
-    return {
-      kind: "grok",
-      createFile: true,
-      prompt: inventPrompt(
-        difficultyFromText(lower),
-        "any core DSA topic",
-        raw,
-      ),
-    };
+    return { kind: "leetcode", mode: "oa" };
   }
 
   return null;
@@ -408,8 +404,9 @@ export function buildSubmitFailPrompt(opts: {
     "1) Clearly say submit failed and the problem was NOT marked done.",
     "2) Diagnose from the failing cases / traceback — be concrete about what is wrong.",
     "3) Tell them what to fix next (edge cases, off-by-one, wrong return shape, etc.).",
-    "4) Reply with short advice plus 2–6 L#: hint lines for ScratchCLI to inject as # HINT: comments.",
-    "5) Do NOT dump a full corrected solution or rewrite their whole file unless they explicitly typed solution.",
-    "6) Do NOT pretend the tests passed.",
+    "4) If every listed case already PASSED but submit still failed, say the app may have rejected for another reason — do NOT insist they invent more cases just to hit a count.",
+    "5) Reply with short advice plus 2–6 L#: hint lines for ScratchCLI to inject as # HINT: comments.",
+    "6) Do NOT dump a full corrected solution or rewrite their whole file unless they explicitly typed solution.",
+    "7) Do NOT pretend the tests passed.",
   ].join("\n");
 }

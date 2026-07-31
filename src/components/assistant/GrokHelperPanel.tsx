@@ -31,6 +31,7 @@ import {
   extractPracticeFile,
   extractPracticeKey,
   ensurePracticeTrackingLines,
+  inventCoachDisplay,
   PRACTICE_SEAL_RETRY_PROMPT,
 } from "./practiceFile";
 import { sealPracticeFile } from "./sealPracticeTests";
@@ -139,9 +140,9 @@ const COACH_SLASH_COMMANDS: SlashCommand[] = [
   { id: "done list", label: "done list", description: "Show completed problems" },
   { id: "done reset", label: "done reset", description: "Clear completed problem history" },
   { id: "progress", label: "progress", description: "Show practice progress" },
-  { id: "easy", label: "easy", description: "Invent an Easy practice problem" },
-  { id: "medium", label: "medium", description: "Invent a Medium practice problem" },
-  { id: "next", label: "next", description: "Invent the next practice problem" },
+  { id: "easy", label: "easy", description: "Fetch an Easy LeetCode problem" },
+  { id: "medium", label: "medium", description: "Fetch a Medium LeetCode problem" },
+  { id: "next", label: "next", description: "Fetch the next company problem" },
   { id: "companies", label: "companies", description: "List company filters" },
   { id: "study", label: "study", description: "Open the Study board" },
   { id: "assistant", label: "assistant", description: "Open the coding assistant" },
@@ -151,9 +152,12 @@ const COACH_SLASH_COMMANDS: SlashCommand[] = [
   { id: "insert", label: "insert", description: "Insert the last coach response" },
   { id: "viz", label: "viz", description: "Open a visualization" },
   { id: "settings", label: "settings", description: "Open AI settings" },
-  { id: "clear", label: "clear", description: "Clear coach output" },
+  { id: "clear", label: "clear", description: "Clear this conversation" },
   { id: "exit", label: "exit", description: "Close DSA coach" },
 ];
+
+const COACH_WELCOME =
+  "DSA coach helps you practice interview problems, visualize patterns, and generate guided hints. Use easy/medium, submit (run tests + mark done if pass), done list, hint/review, or solution.";
 
 function CopyCodeButton({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
@@ -310,7 +314,7 @@ export function GrokHelperPanel({
     {
       id: lineId++,
       kind: "system",
-      text: "DSA coach helps you practice interview problems, visualize patterns, and generate guided hints. Use easy/medium, submit (run tests + mark done if pass), done list, hint/review, or solution.",
+      text: COACH_WELCOME,
     },
   ]);
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
@@ -335,6 +339,7 @@ export function GrokHelperPanel({
   const guideBufferAfterReply = useRef(false);
   const guideSourceBuffer = useRef("");
   const contextCacheRef = useRef(createChatContextCache());
+  const historyRef = useRef<CoachChatMessage[]>([]);
   const resize = useRef<{
     pointerId: number;
     startX: number;
@@ -529,9 +534,14 @@ export function GrokHelperPanel({
   const usingLocalCompactContext =
     isLocalProvider(provider) && ai.localContextSource === "file";
 
+  useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
+
   // Reset coach memory when the open file/tab changes so help stays on-problem.
   useEffect(() => {
     setHistory([]);
+    historyRef.current = [];
     setContextMeta(undefined);
   }, [contextKey]);
 
@@ -562,23 +572,33 @@ export function GrokHelperPanel({
     requestAnimationFrame(() => inputRef.current?.focus());
   };
 
-  const clearLocalSession = () => {
+  const clearConversation = () => {
     clearChatContextCache(contextCacheRef.current, contextKey);
+    historyRef.current = [];
     setHistory([]);
     setContextMeta(undefined);
-    append(
-      "system",
-      usingLocalCompactContext
-        ? "Cleared local file context cache and local coach history."
-        : "Cleared local coach history.",
-    );
+    lastReply.current = "";
+    setLines([
+      {
+        id: lineId++,
+        kind: "system",
+        text:
+          ai.localContextSource === "file"
+            ? "Conversation cleared. File mode still uses your open editor file on the next question."
+            : "Conversation cleared. Ask a new question, or type easy / invent for a practice problem.",
+      },
+    ]);
   };
 
   const compactLocalSession = () => {
     if (usingLocalCompactContext) {
       compactChatContextCache(contextCacheRef.current, contextKey);
     }
-    setHistory((current) => current.slice(-2));
+    setHistory((current) => {
+      const next = current.slice(-2);
+      historyRef.current = next;
+      return next;
+    });
     setContextMeta(undefined);
     append(
       "system",
@@ -618,7 +638,14 @@ export function GrokHelperPanel({
     }
     setLines((current) => [
       ...current.slice(-120),
-      { id: outputId, kind: "output", text: "", streaming: true },
+      {
+        id: outputId,
+        kind: "output",
+        text: options?.createFile
+          ? "Inventing practice problem (solution stays hidden)…"
+          : "",
+        streaming: true,
+      },
     ]);
 
     const paintDisplay = () => {
@@ -631,6 +658,12 @@ export function GrokHelperPanel({
         ),
       );
     };
+
+    if (options?.createFile) {
+      streamTargetText.current =
+        "Inventing practice problem (solution stays hidden)…";
+      streamDisplayText.current = streamTargetText.current;
+    }
 
     const tickReveal = () => {
       if (activeRequestIdRef.current !== requestId) {
@@ -659,6 +692,8 @@ export function GrokHelperPanel({
 
     const queueToken = (token: string) => {
       if (activeRequestIdRef.current !== requestId) return;
+      // Invent/createFile: never stream the reference solution into chat.
+      if (options?.createFile) return;
       streamTargetText.current += token;
       if (streamAnimRaf.current == null) {
         streamAnimRaf.current = requestAnimationFrame(tickReveal);
@@ -666,9 +701,12 @@ export function GrokHelperPanel({
     };
 
     try {
-      // Always attach the open editor file for help (cloud + local). Skip only when inventing a new practice file.
+      // File mode attaches the open buffer; Chat mode is conversation-only.
       const includeFileContext =
-        Boolean(sourceBuffer.trim()) && !options?.createFile;
+        ai.localContextSource === "file" &&
+        Boolean(sourceBuffer.trim()) &&
+        !options?.createFile;
+      const activeHistory = historyRef.current;
       const context =
         includeFileContext && usingLocalCompactContext
           ? buildChatContextPayload({
@@ -681,7 +719,7 @@ export function GrokHelperPanel({
               fileKey: contextKey,
               localMode: ai.localContextMode,
               question,
-              history,
+              history: activeHistory,
             })
           : {
               buffer: includeFileContext ? sourceBuffer : "",
@@ -700,51 +738,68 @@ export function GrokHelperPanel({
         includeContext: includeFileContext,
         history: options?.createFile
           ? []
-          : historyForLocalSpeed(provider, ai.localContextMode, history),
+          : historyForLocalSpeed(provider, ai.localContextMode, activeHistory),
         onToken: queueToken,
       });
       if (activeRequestIdRef.current !== requestId) return;
       // Finish revealing any remaining buffered text smoothly, then settle.
-      streamTargetText.current = result.reply;
-      await new Promise<void>((resolve) => {
-        const finish = () => {
-          if (activeRequestIdRef.current !== requestId) {
-            resolve();
-            return;
-          }
-          if (
-            streamDisplayText.current.length >= streamTargetText.current.length
-          ) {
-            if (streamAnimRaf.current != null) {
-              cancelAnimationFrame(streamAnimRaf.current);
-              streamAnimRaf.current = null;
-            }
-            resolve();
-            return;
-          }
-          if (streamAnimRaf.current == null) {
-            streamAnimRaf.current = requestAnimationFrame(tickReveal);
-          }
-          requestAnimationFrame(finish);
-        };
-        finish();
-      });
-      if (activeRequestIdRef.current !== requestId) return;
-
-      lastReply.current = result.reply;
+      // Invent replies: snap to a spoiler-free summary (never animate the solution fence).
+      const hideInventSolution = Boolean(options?.createFile);
       let displayReply = result.reply;
       if (guideBufferAfterReply.current) {
         displayReply = stripFullFileFencesFromReply(
           result.reply,
           guideSourceBuffer.current,
         );
+      } else if (hideInventSolution) {
+        displayReply = inventCoachDisplay(result.reply);
       }
+      lastReply.current = displayReply;
+      streamTargetText.current = displayReply;
+      streamDisplayText.current = hideInventSolution
+        ? displayReply
+        : streamDisplayText.current;
+      if (!hideInventSolution) {
+        await new Promise<void>((resolve) => {
+          const finish = () => {
+            if (activeRequestIdRef.current !== requestId) {
+              resolve();
+              return;
+            }
+            if (
+              streamDisplayText.current.length >= streamTargetText.current.length
+            ) {
+              if (streamAnimRaf.current != null) {
+                cancelAnimationFrame(streamAnimRaf.current);
+                streamAnimRaf.current = null;
+              }
+              resolve();
+              return;
+            }
+            if (streamAnimRaf.current == null) {
+              streamAnimRaf.current = requestAnimationFrame(tickReveal);
+            }
+            requestAnimationFrame(finish);
+          };
+          finish();
+        });
+        if (activeRequestIdRef.current !== requestId) return;
+      }
+
       streamDisplayText.current = displayReply;
-      setHistory((current) => [
-        ...current,
-        { role: "user", content: question },
-        { role: "assistant", content: result.reply },
-      ]);
+      setHistory((current) => {
+        const next = [
+          ...current,
+          { role: "user" as const, content: question },
+          // Keep invent solutions out of coach memory so later turns don't spoil them.
+          {
+            role: "assistant" as const,
+            content: hideInventSolution ? displayReply : result.reply,
+          },
+        ];
+        historyRef.current = next;
+        return next;
+      });
       ai.setCoachProvider(provider);
       ai.setCoachModel(result.model);
       setLines((current) =>
@@ -805,6 +860,20 @@ export function GrokHelperPanel({
               return;
             }
             toWrite = sealed.file;
+            if (!/\n\s+pass\s*\n/.test(toWrite.content)) {
+              append(
+                "error",
+                "Sealed practice file still contains a solution body — not opening it. Try easy / invent again.",
+              );
+              return;
+            }
+          } else if (createFileAfterReply.current) {
+            // Never open an invent file that skipped sealing (would leak the reference solution).
+            append(
+              "error",
+              "Invent reply was missing CASES to seal — file not created. Try easy / invent again.",
+            );
+            return;
           }
           toWrite = ensurePracticeTrackingLines(toWrite);
           const practiceKey = extractPracticeKey(toWrite.content);
@@ -881,7 +950,7 @@ export function GrokHelperPanel({
       return;
     }
     if (lower === "clear" || lower === "cls") {
-      setLines([]);
+      clearConversation();
       return;
     }
     if (lower === "help" || lower === "?" || lower === "/" || lower === "/help") {
@@ -890,9 +959,10 @@ export function GrokHelperPanel({
         [
           "DSA coach commands",
           "  / or help          Show this command list",
-          "  next               Invent a Medium practice problem + sealed tests",
-          "  easy | medium | hard  Invent practice by difficulty (local CASES)",
-          "  invent | original  Same — original AI problem with sealed tests",
+          "  next               Pull next company problem (same as oa)",
+          "  easy | medium      Pull real LeetCode by difficulty",
+          "  invent | original  Invent an original problem with sealed tests",
+          "  hard               Invent a Hard practice problem",
           "  leetcode <slug>    Pull a specific real LeetCode problem",
           "  company <name>     Switch company filter (or use dropdown)",
           "  companies          List available companies",
@@ -900,10 +970,11 @@ export function GrokHelperPanel({
           "  assistant          Open the general coding assistant",
           "  theme comet        Set the comet theme from main CLI",
           "  done               Mark current practice complete (saves for done list)",
-          "  submit             3+ cases + consistency gate; reports complexity",
+          "  submit             Run all cases + consistency gate; reports complexity",
           "  done list          Show finished problems (click to reopen)",
           "  progress           Same as done list",
           "  done reset         Reset completed/skipped progress",
+          "  clear | cls        Clear this conversation",
           "  hint | advice      Give guidance without full solve",
           "  cheat [topic]      Show Python DSA syntax/reference help",
           "  review             Review your current approach/file",
@@ -911,9 +982,8 @@ export function GrokHelperPanel({
           "  viz                Open local Visualize mode",
           "  insert             Insert the last coach reply into editor",
           "  settings           Open AI keys/settings",
-          "  clear              Clear coach output history",
           "  exit               Close DSA coach",
-          "Local submit needs 3+ explicit cases; add edge cases to the practice file first.",
+          "Local submit accepts when every explicit case in the file passes (LeetCode example counts vary).",
         ].join("\n"),
       );
       return;
@@ -1067,7 +1137,7 @@ export function GrokHelperPanel({
         }
         append(
           "system",
-          "Running the local submit gate (minimum 4 cases, then consistency reruns)…",
+          "Running the local submit gate (all cases in the file must pass, then consistency reruns)…",
         );
         try {
           const cwd = useSessionStore.getState().cwd || null;
@@ -1081,7 +1151,9 @@ export function GrokHelperPanel({
             summary?.cases.filter((item) => !item.passed).map((item) => item.label) ??
             [];
           const hasFailLine = /\bFAIL\b/i.test(combined);
-          const hasEnoughCases = Boolean(summary && summary.total >= 4);
+          // LeetCode official example counts vary (often 2–3). Accept whatever
+          // explicit cases are in the file as long as all of them pass.
+          const hasEnoughCases = Boolean(summary && summary.total >= 1);
           const allPassed =
             result.exitCode === 0 &&
             !hasFailLine &&
@@ -1140,7 +1212,7 @@ export function GrokHelperPanel({
           }
 
           const summaryText = !hasEnoughCases
-            ? `${summary?.total ?? 0} test case(s); add at least 4 explicit cases before submitting`
+            ? `${summary?.total ?? 0} test case(s); need at least one PASS/FAIL case in the file`
             : summary
               ? `${summary.passed}/${summary.total} passed`
             : result.exitCode === 0
@@ -1379,8 +1451,8 @@ export function GrokHelperPanel({
                   event.target.value as typeof ai.localContextSource,
                 )
               }
-              disabled={busy || !isLocalProvider(provider)}
-              title="Local compact mode (open file is always attached for help)"
+              disabled={busy}
+              title="File = attach open editor buffer; Chat = conversation only"
             >
               <option value="file">File</option>
               <option value="chat">Chat</option>
@@ -1452,9 +1524,9 @@ export function GrokHelperPanel({
               <button
                 type="button"
                 className="context-action-btn"
-                onClick={clearLocalSession}
+                onClick={clearConversation}
                 disabled={busy}
-                title="Clear local session context"
+                title="Clear this conversation (all chat text + memory)"
               >
                 Clear
               </button>

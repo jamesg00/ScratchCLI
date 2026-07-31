@@ -14,7 +14,7 @@
   <Identity
     Name="deadat18.ScratchCLI"
     Publisher="CN=FE04D02D-3D7A-4EEF-81EB-009070E54350"
-    Version="0.1.1.0" />
+    Version="0.1.2.0" />
 
   <Properties>
     <DisplayName>ScratchCLI</DisplayName>

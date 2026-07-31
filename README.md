@@ -33,14 +33,14 @@ API keys: **Menu → AI keys** or type `env`. See [PRIVACY.md](PRIVACY.md).
 
 ### From a release installer
 
-1. Download `ScratchCLI_0.1.1_x64-setup.exe` from [Releases](../../releases).
+1. Download `ScratchCLI_0.1.2_x64-setup.exe` from [Releases](../../releases).
 2. Run the installer (SmartScreen may warn if the build is unsigned).
 3. Launch **ScratchCLI**. Requires **WebView2** (included on most Windows 10/11 PCs).
 
 Silent install (e.g. Store / scripts):
 
 ```text
-ScratchCLI_0.1.1_x64-setup.exe /S
+ScratchCLI_0.1.2_x64-setup.exe /S
 ```
 
 ### Build from source
@@ -66,7 +66,7 @@ npm.cmd run tauri build
 
 Outputs:
 
-- `src-tauri/target/release/bundle/nsis/ScratchCLI_0.1.1_x64-setup.exe`
+- `src-tauri/target/release/bundle/nsis/ScratchCLI_0.1.2_x64-setup.exe`
 - `src-tauri/target/release/scratchcli.exe`
 
 ## Quick start
@@ -118,5 +118,7 @@ Stack: Tauri 2, React, TypeScript, CodeMirror 6, Zustand, Rust, SQLite.
 See repository license file (or add one before publishing).
 
 ---
+
+**v0.1.2** — LeetCode easy/medium restore, ListNode/TreeNode harness, submit-all-cases gate, File-mode context after Clear, invent spoiler fix.
 
 **v0.1.1** — DSA coach invent/seal practice, done-list reopen, open-file AI context, Study board + visualize upgrades.

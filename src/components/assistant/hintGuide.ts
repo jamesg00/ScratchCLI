@@ -331,8 +331,8 @@ export function wrapFreeformCoachPrompt(question: string): {
     guideBuffer: false,
     prompt: [
       "Answer the user's question as a DSA coach about the CURRENTLY OPEN editor file.",
-      "That open practice file IS the problem they are doing — identify it from # FILE / # LC / the docstring.",
-      "Do NOT invent a new problem or ask which problem they mean when the editor buffer is present.",
+      "That open practice file IS attached as context — identify it from # FILE / # LC / the docstring.",
+      "Do NOT invent a new problem, and do NOT ask them to paste their code when the editor buffer is present.",
       "",
       "STRICT RULES:",
       "1) Do NOT return their whole file, whole function, or a complete solution. Do NOT fill in `pass`.",

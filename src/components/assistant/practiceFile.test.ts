@@ -4,6 +4,7 @@ import {
   expandPracticeCommand,
   extractPracticeKey,
   ensurePracticeTrackingLines,
+  inventCoachDisplay,
 } from "./practiceFile";
 
 describe("extractPracticeFile", () => {
@@ -63,8 +64,27 @@ describe("extractPracticeFile", () => {
 });
 
 describe("expandPracticeCommand", () => {
-  it("routes easy/medium/oa/next to invent + seal (not LeetCode fetch)", () => {
-    for (const cmd of ["easy", "medium", "oa", "next"] as const) {
+  it("routes easy/medium/oa/next to real LeetCode", () => {
+    expect(expandPracticeCommand("easy", "easy")).toEqual({
+      kind: "leetcode",
+      mode: "easy",
+    });
+    expect(expandPracticeCommand("medium", "medium")).toEqual({
+      kind: "leetcode",
+      mode: "medium",
+    });
+    expect(expandPracticeCommand("oa", "oa")).toEqual({
+      kind: "leetcode",
+      mode: "oa",
+    });
+    expect(expandPracticeCommand("next", "next")).toEqual({
+      kind: "leetcode",
+      mode: "oa",
+    });
+  });
+
+  it("routes invent/hard to Grok create-file", () => {
+    for (const cmd of ["invent", "hard"] as const) {
       const result = expandPracticeCommand(cmd, cmd);
       expect(result?.kind).toBe("grok");
       if (result?.kind === "grok") {
@@ -74,15 +94,21 @@ describe("expandPracticeCommand", () => {
       }
     }
   });
-
-  it("routes invent to Grok create-file", () => {
-    const result = expandPracticeCommand("invent", "invent");
-    expect(result?.kind).toBe("grok");
-    if (result?.kind === "grok") {
-      expect(result.createFile).toBe(true);
-      expect(result.prompt).toMatch(/CASES/);
-      expect(result.prompt).toMatch(/INPUTS ONLY/);
-    }
+  it("hides invent solution fences from coach display", () => {
+    const display = inventCoachDisplay(
+      [
+        "Here is an Easy neighbor-count problem.",
+        "```python",
+        "# FILE: x.py",
+        "def f(nums):",
+        "    return 1",
+        "```",
+      ].join("\n"),
+    );
+    expect(display).toContain("Easy neighbor-count");
+    expect(display).toMatch(/hidden/i);
+    expect(display).not.toContain("return 1");
+    expect(display).not.toContain("```");
   });
 
   it("parses leetcode slug and done", () => {

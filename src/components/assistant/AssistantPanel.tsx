@@ -56,11 +56,14 @@ type Props = {
 };
 
 const ASSISTANT_SLASH_COMMANDS: SlashCommand[] = [
-  { id: "clear", label: "clear", description: "Clear assistant output" },
-  { id: "context", label: "context", description: "Clear local file and chat context" },
+  { id: "clear", label: "clear", description: "Clear this conversation" },
+  { id: "context", label: "context", description: "Clear file/chat context memory only" },
   { id: "settings", label: "settings", description: "Open AI settings" },
   { id: "close", label: "close", description: "Close Assistant" },
 ];
+
+const ASSISTANT_WELCOME =
+  "Assistant ready. Chat about code, files, or your workspace. Use coach for DSA practice.";
 
 function historyForLocalSpeed(
   provider: ChatProviderId,
@@ -183,7 +186,7 @@ export function AssistantPanel({
     {
       id: lineId++,
       kind: "system",
-      text: "Assistant ready. Chat about code, files, or your workspace. Use coach for DSA practice.",
+      text: ASSISTANT_WELCOME,
     },
   ]);
   const [input, setInput] = useState("");
@@ -203,6 +206,7 @@ export function AssistantPanel({
   const paneRef = useRef<HTMLElement>(null);
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
   const contextCacheRef = useRef(createChatContextCache());
+  const historyRef = useRef<ChatMessage[]>([]);
   const streamTargetText = useRef("");
   const streamDisplayText = useRef("");
   const streamAnimRaf = useRef<number | null>(null);
@@ -270,18 +274,41 @@ export function AssistantPanel({
     isLocalProvider(provider) && ai.localContextSource === "file";
 
   useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
+
+  useEffect(() => {
     setHistory([]);
+    historyRef.current = [];
     setContextMeta(undefined);
   }, [contextKey]);
 
+  const clearConversation = () => {
+    clearChatContextCache(contextCacheRef.current, contextKey);
+    historyRef.current = [];
+    setHistory([]);
+    setContextMeta(undefined);
+    setLines([
+      {
+        id: lineId++,
+        kind: "system",
+        text:
+          ai.localContextSource === "file"
+            ? "Conversation cleared. File mode still uses your open editor file on the next question."
+            : "Conversation cleared. Ask a new question anytime.",
+      },
+    ]);
+  };
+
   const clearLocalSession = () => {
     clearChatContextCache(contextCacheRef.current, contextKey);
+    historyRef.current = [];
     setHistory([]);
     setContextMeta(undefined);
     append(
       "system",
-      usingLocalCompactContext
-        ? "Cleared local file context cache and local chat history."
+      ai.localContextSource === "file"
+        ? "Cleared chat history. File mode still attaches your open editor file."
         : "Cleared local chat history.",
     );
   };
@@ -290,7 +317,11 @@ export function AssistantPanel({
     if (usingLocalCompactContext) {
       compactChatContextCache(contextCacheRef.current, contextKey);
     }
-    setHistory((current) => current.slice(-2));
+    setHistory((current) => {
+      const next = current.slice(-2);
+      historyRef.current = next;
+      return next;
+    });
     setContextMeta(undefined);
     append(
       "system",
@@ -399,6 +430,10 @@ export function AssistantPanel({
   const ask = async (question: string) => {
     const trimmed = question.trim();
     if (!trimmed || busy) return;
+    if (/^(clear|cls|\/clear)$/i.test(trimmed)) {
+      clearConversation();
+      return;
+    }
     setBusy(true);
     append("command", `you> ${trimmed}`);
     const outId = append("output", "", true);
@@ -416,7 +451,10 @@ export function AssistantPanel({
           `Add a ${provider} API key in AI keys (Menu → AI keys, or type env).`,
         );
       }
-      const includeFileContext = Boolean(buffer.trim());
+      // File mode attaches the open buffer; Chat mode is conversation-only.
+      const includeFileContext =
+        ai.localContextSource === "file" && Boolean(buffer.trim());
+      const activeHistory = historyRef.current;
       const context =
         includeFileContext && usingLocalCompactContext
           ? buildChatContextPayload({
@@ -429,7 +467,7 @@ export function AssistantPanel({
               fileKey: contextKey,
               localMode: ai.localContextMode,
               question: trimmed,
-              history,
+              history: activeHistory,
             })
           : {
               buffer: includeFileContext ? buffer : "",
@@ -447,7 +485,11 @@ export function AssistantPanel({
         model: model || undefined,
         apiKey,
         baseUrl: baseUrlForProvider(provider, ai),
-        history: historyForLocalSpeed(provider, ai.localContextMode, history),
+        history: historyForLocalSpeed(
+          provider,
+          ai.localContextMode,
+          activeHistory,
+        ),
         onToken: (text) => queueToken(outId, requestId, text),
       });
       if (activeRequestIdRef.current !== requestId) return;
@@ -480,11 +522,15 @@ export function AssistantPanel({
       if (activeRequestIdRef.current !== requestId) return;
       patchLine(outId, { text: result.reply, streaming: false });
       activeOutputIdRef.current = null;
-      setHistory((current) => [
-        ...current.slice(-18),
-        { role: "user", content: trimmed },
-        { role: "assistant", content: result.reply },
-      ]);
+      setHistory((current) => {
+        const next = [
+          ...current.slice(-18),
+          { role: "user" as const, content: trimmed },
+          { role: "assistant" as const, content: result.reply },
+        ];
+        historyRef.current = next;
+        return next;
+      });
       ai.setAssistantProvider(provider);
       ai.setAssistantModel(result.model);
     } catch (error) {
@@ -518,7 +564,7 @@ export function AssistantPanel({
     setInput("");
     setSlashIndex(0);
     if (command.id === "clear") {
-      setLines([]);
+      clearConversation();
       return;
     }
     if (command.id === "context") {
@@ -664,8 +710,8 @@ export function AssistantPanel({
                   event.target.value as typeof ai.localContextSource,
                 )
               }
-              disabled={busy || !isLocalProvider(provider)}
-              title="Local compact mode (open file is always attached for help)"
+              disabled={busy}
+              title="File = attach open editor buffer; Chat = conversation only"
             >
               <option value="file">File</option>
               <option value="chat">Chat</option>
@@ -725,9 +771,9 @@ export function AssistantPanel({
               <button
                 type="button"
                 className="context-action-btn"
-                onClick={clearLocalSession}
+                onClick={clearConversation}
                 disabled={busy}
-                title="Clear local session context"
+                title="Clear this conversation (all chat text + memory)"
               >
                 Clear
               </button>
